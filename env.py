@@ -60,7 +60,7 @@ class NewLift(SingleArmEnv):
 
         use_camera_obs (bool): if True, every observation includes rendered image(s)
 
-        use_object_obs (bool): if True, include object (cube) information in
+        use_object_obs (bool): if True, include object (ball) information in
             the observation.
 
         reward_scale (None or float): Scales the normalized reward function by the amount specified.
@@ -145,7 +145,7 @@ class NewLift(SingleArmEnv):
         render_visual_mesh=True,
         render_gpu_device_id=-1,
         control_freq=20,
-        horizon=1000,
+        horizon=1000000,
         ignore_done=False,
         hard_reset=True,
         camera_names="agentview",
@@ -198,13 +198,13 @@ class NewLift(SingleArmEnv):
 
         Sparse un-normalized reward:
 
-            - a discrete reward of 2.25 is provided if the cube is lifted
+            - a discrete reward of 2.25 is provided if the ball is lifted
 
         Un-normalized summed components if using reward shaping:
 
-            - Reaching: in [0, 1], to encourage the arm to reach the cube
-            - Grasping: in {0, 0.25}, non-zero if arm is grasping the cube
-            - Lifting: in {0, 1}, non-zero if arm has lifted the cube
+            - Reaching: in [0, 1], to encourage the arm to reach the ball
+            - Grasping: in {0, 0.25}, non-zero if arm is grasping the ball
+            - Lifting: in {0, 1}, non-zero if arm has lifted the ball
 
         The sparse reward only consists of the lifting component.
 
@@ -227,14 +227,14 @@ class NewLift(SingleArmEnv):
         elif self.reward_shaping:
 
             # reaching reward
-            cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+            ball_pos = self.sim.data.body_xpos[self.ball_body_id]
             gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-            dist = np.linalg.norm(gripper_site_pos - cube_pos)
+            dist = np.linalg.norm(gripper_site_pos - ball_pos)
             reaching_reward = 1 - np.tanh(10.0 * dist)
             reward += reaching_reward
 
             # grasping reward
-            if self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube):
+            if self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.ball):
                 reward += 0.25
 
         # Scale reward if requested
@@ -275,8 +275,8 @@ class NewLift(SingleArmEnv):
             tex_attrib=tex_attrib,
             mat_attrib=mat_attrib,
         )
-        self.cube = BallObject(
-            name="cube",
+        self.ball = BallObject(
+            name="ball",
             size_min=[0.020, 0.020, 0.020],  # [0.015, 0.015, 0.015],
             size_max=[0.022, 0.022, 0.022],  # [0.018, 0.018, 0.018])
             rgba=[1, 0, 0, 1],
@@ -286,11 +286,11 @@ class NewLift(SingleArmEnv):
         # Create placement initializer
         if self.placement_initializer is not None:
             self.placement_initializer.reset()
-            self.placement_initializer.add_objects(self.cube)
+            self.placement_initializer.add_objects(self.ball)
         else:
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
-                mujoco_objects=self.cube,
+                mujoco_objects=self.ball,
                 x_range=[-0.03, 0.03],
                 y_range=[-0.03, 0.03],
                 rotation=None,
@@ -304,7 +304,7 @@ class NewLift(SingleArmEnv):
         self.model = ManipulationTask(
             mujoco_arena=mujoco_arena,
             mujoco_robots=[robot.robot_model for robot in self.robots], 
-            mujoco_objects=self.cube,
+            mujoco_objects=self.ball,
         )
 
     def _setup_references(self):
@@ -316,7 +316,7 @@ class NewLift(SingleArmEnv):
         super()._setup_references()
 
         # Additional object references from this env
-        self.cube_body_id = self.sim.model.body_name2id(self.cube.root_body)
+        self.ball_body_id = self.sim.model.body_name2id(self.ball.root_body)
 
     def _setup_observables(self):
         """
@@ -333,21 +333,21 @@ class NewLift(SingleArmEnv):
             pf = self.robots[0].robot_model.naming_prefix
             modality = "object"
 
-            # cube-related observables
+            # ball-related observables
             @sensor(modality=modality)
-            def cube_pos(obs_cache):
-                return np.array(self.sim.data.body_xpos[self.cube_body_id])
+            def ball_pos(obs_cache):
+                return np.array(self.sim.data.body_xpos[self.ball_body_id])
 
             @sensor(modality=modality)
-            def cube_quat(obs_cache):
-                return convert_quat(np.array(self.sim.data.body_xquat[self.cube_body_id]), to="xyzw")
+            def ball_quat(obs_cache):
+                return convert_quat(np.array(self.sim.data.body_xquat[self.ball_body_id]), to="xyzw")
 
             @sensor(modality=modality)
-            def gripper_to_cube_pos(obs_cache):
-                return obs_cache[f"{pf}eef_pos"] - obs_cache["cube_pos"] if \
-                    f"{pf}eef_pos" in obs_cache and "cube_pos" in obs_cache else np.zeros(3)
+            def gripper_to_ball_pos(obs_cache):
+                return obs_cache[f"{pf}eef_pos"] - obs_cache["ball_pos"] if \
+                    f"{pf}eef_pos" in obs_cache and "ball_pos" in obs_cache else np.zeros(3)
 
-            sensors = [cube_pos, cube_quat, gripper_to_cube_pos]
+            sensors = [ball_pos, ball_quat, gripper_to_ball_pos]
             names = [s.__name__ for s in sensors]
 
             # Create observables
@@ -378,7 +378,7 @@ class NewLift(SingleArmEnv):
 
     def visualize(self, vis_settings):
         """
-        In addition to super call, visualize gripper site proportional to the distance to the cube.
+        In addition to super call, visualize gripper site proportional to the distance to the ball.
 
         Args:
             vis_settings (dict): Visualization keywords mapped to T/F, determining whether that specific
@@ -388,33 +388,36 @@ class NewLift(SingleArmEnv):
         # Run superclass method first
         super().visualize(vis_settings=vis_settings)
 
-        # Color the gripper visualization site according to its distance to the cube
+        # Color the gripper visualization site according to its distance to the ball
         if vis_settings["grippers"]:
-            self._visualize_gripper_to_target(gripper=self.robots[0].gripper, target=self.cube)
+            self._visualize_gripper_to_target(gripper=self.robots[0].gripper, target=self.ball)
 
     def _check_success(self):
         """
-        Check if cube has been lifted.
+        Check if ball has been lifted.
 
         Returns:
-            bool: True if cube has been lifted
+            bool: True if ball has been lifted
         """
-        cube_height = self.sim.data.body_xpos[self.cube_body_id][2]
+        ball_height = self.sim.data.body_xpos[self.ball_body_id]
         #table_height = self.model.mujoco_arena.table_offset[2]
-        table_height = 0
+        eef_height = self.sim.data.body_xpos[self.robots[0].eef_site_id]
+        error = 0.01
 
-        # cube is higher than the table top above a margin
-        return cube_height > table_height + 0.04
+        #print((sum(abs(ball_height) - abs(eef_height)) / 3))
+
+        # ball is higher than the table top above a margin
+        return (abs(sum(abs(ball_height) - abs(eef_height))) / 3) < error
     
     def _check_failure(self):
         """
-        Check if cube has been lifted.
+        Check if ball has been lifted.
 
         Returns:
-            bool: True if cube has been lifted
+            bool: True if ball has been lifted
         """
-        cube_height = self.sim.data.body_xpos[self.cube_body_id][2]
-        return cube_height < 0.1
+        ball_height = self.sim.data.body_xpos[self.ball_body_id][2]
+        return ball_height < 0.1
     
     def resetBallPosition(self):
         # Create placement initializer
@@ -424,3 +427,23 @@ class NewLift(SingleArmEnv):
             # Loop through all objects and reset their positions
             for obj_pos, obj_quat, obj in object_placements.values():
                 self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(obj_quat)]))
+
+    def get_ball_position(self):
+        """
+        Get the position of the ball in the environment. Made for testing purposes.
+
+        Returns:
+            numpy.ndarray: Array containing the x, y, z position of the ball.
+        """
+        ball_pos = self.sim.data.body_xpos[self.ball_body_id]
+        return ball_pos
+    
+    def get_end_effector_position(self):
+        """
+        Get the position of the end effector in the environment. Made for testing purposes.
+
+        Returns:
+            numpy.ndarray: Array containing the x, y, z position of the end effector.
+        """
+        end_effector_pos = self._setup_observables()["robot0_eef_pos"]
+        return end_effector_pos

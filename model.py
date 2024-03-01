@@ -4,5 +4,8 @@ class NaiveModel(object):
     def __init__(self, dof):
         self.dof = dof
 
-    def __call__(self, obs=None):
-        return np.random.randn(self.dof)
+    def __call__(self, env, obs=None):
+        # a trained policy could be used here, but we choose a random action
+        low, high = env.action_spec
+        action = np.random.uniform(low, high)
+        return action
