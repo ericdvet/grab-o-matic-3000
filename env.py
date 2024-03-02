@@ -217,7 +217,7 @@ class NewLift(SingleArmEnv):
         Returns:
             float: reward value
         """
-        reward = 0.
+        """reward = 0.
 
         # sparse completion reward
         if self._check_success():
@@ -239,7 +239,12 @@ class NewLift(SingleArmEnv):
 
         # Scale reward if requested
         if self.reward_scale is not None:
-            reward *= self.reward_scale / 2.25
+            reward *= self.reward_scale / 2.25"""
+        
+        ball_height = self.sim.data.body_xpos[self.ball_body_id]
+        eef_height = self.sim.data.body_xpos[self.robots[0].eef_site_id]
+        dist = (eef_height - ball_height)
+        reward = -np.sqrt(dist[0] ** 2 + dist[1] ** 2 + dist[2] ** 2)
 
         return reward
 

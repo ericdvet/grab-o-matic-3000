@@ -46,6 +46,8 @@ while not env._check_success():
     action = model(env, obs) # sample random action
     obs, reward, done, info = env.step(action)  # take action in the environment
 
+    print(reward)
+
     if env._check_failure():
         ball_fall_flag = False
         penalties += 1

@@ -8,4 +8,6 @@ class NaiveModel(object):
         # a trained policy could be used here, but we choose a random action
         low, high = env.action_spec
         action = np.random.uniform(low, high)
+        """if ( )
+        print(obs.get('robot0_eef_pos'))"""
         return action
