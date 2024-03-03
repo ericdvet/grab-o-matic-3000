@@ -3,6 +3,7 @@ import numpy as np
 import robosuite
 from env import NewLift
 from model import NaiveModel
+import random
 
 from kinematics import *
 
@@ -42,26 +43,65 @@ epochs = 0
 penalties, reward = 0, 0
 done = False
 
-while not env._check_success():
-    action = model(env, obs) # sample random action
-    obs, reward, done, info = env.step(action)  # take action in the environment
+q_table = np.zeros([5 ** 6, 5    ** 6])
 
-    print(reward)
+low, high = env.action_spec
+action = np.random.uniform(low, high)
+obs, reward, done, info = env.step(action)  # take action in the environment
 
-    if env._check_failure():
-        ball_fall_flag = False
-        penalties += 1
+state_space = np.concatenate((obs.get("robot0_eef_pos"),
+                                    obs.get("ball_pos")))
+num_bins_per_dimension = [5, 5, 5, 5, 5, 5]
+state_index = discretize_state(state_space, num_bins_per_dimension)
 
-    if ball_fall_flag == False:
-        ball_fall_delay += 1
 
-    if ball_fall_delay == 100:
-        ball_fall_flag = True
-        ball_fall_delay = 0
-        env.resetBallPosition()
+num_bins_per_dimension_action = [5, 5, 5, 5, 5, 5]
+
+for i in range(1, 100):
+    while not env._check_success():
         
-    epochs += 1
-    env.render()  # render on display 
+        action = model(env, obs) # sample random action
+        obs, reward, done, info = env.step(action)  # take action in the environment
+                                    
+        """if random.uniform(0, 1) < epsilon:
+            low, high = env.action_spec
+            action = np.random.uniform(low, high)
+        else:
+            state_index = discretize_state(state_space, num_bins_per_dimension)
+            action = np.argmax(q_table[state_index]) # Exploit learned values
+
+        obs, reward, done, info = env.step(action)  # take action in the environment
+
+        discretized_action = discretize_action(action, num_bins_per_dimension_action)
+
+        state_space = np.concatenate((obs.get("robot0_eef_pos"), 
+                                    obs.get("ball_pos")))
+        state_index = discretize_state(state_space, num_bins_per_dimension)
+
+
+        old_value = q_table[state_index, discretized_action]
+        next_max = np.max(q_table[state_index])
+
+        new_value = (1 - alpha) * old_value + alpha * (reward + gamma * next_max)
+        q_table[state_index, discretized_action] = new_value
+        
+        if reward < -1:
+            penalties += 1"""
+
+        if ball_fall_flag == False:
+            ball_fall_delay += 1
+
+        if ball_fall_delay == 100:
+            ball_fall_flag = True
+            ball_fall_delay = 0
+            env.resetBallPosition()
+        
+        """if env._check_failure():
+            ball_fall_flag = False
+            penalties += 1"""
+            
+        epochs += 1
+        env.render()  # render on display 
     
 print("Timesteps taken: {}".format(epochs))
 print("Penalties incurred: {}".format(penalties))
