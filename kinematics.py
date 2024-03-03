@@ -67,56 +67,42 @@ def getJacobian(env): # This function returns the jacobian of current configurat
     jacobianMat_gripperEEF = np.concatenate((jacp, jacr),axis=0)
     return jacobianMat_gripperEEF #Outputs the Jacobian expressed in {0}
 
-def discretize_state(state, precision):
-    # Assuming state_space is the concatenated state space
-    # and num_bins_per_dim is the number of bins per dimension
-    discretized_state = []
-    for i in range(len(state)):
-        discrete_value = int(state[i] % precision)
-        discretized_state.append(discrete_value)
-    return tuple(discretized_state)  # Convert to tuple for use as dictionary key
-
-def discretize_dimension(value, num_bins):
-    bin_width = 1.0 / num_bins
-    return min(int(value / bin_width), num_bins - 1)
-
-def discretize_state(state, num_bins_per_dimension):
+def discretize_state(position, num_position_bins=10, min_position=[-1.0, -1.0, 0], max_position=[1.0, 1.0, 2]):
     state_index = 0
-    current_index_offset = 0
-    for i, value in enumerate(state):
-        num_bins = num_bins_per_dimension[i]
-        dimension_index = discretize_dimension(value, num_bins)
-        state_index += dimension_index * (num_bins_per_dimension[i] ** i)
+
+    for i in range(len(position)):
+        bin_index = int(np.clip((position[i] - min_position[i]) / (max_position[i] - min_position[i]) * num_position_bins, 0, num_position_bins - 1))
+        state_index += bin_index * (num_position_bins ** (len(position) - 1 - i))  # Update the power of num_position_bins based on position's index
+
     return state_index
 
-def discretize_action_dimension(value, num_bins):
-    """
-    Discretize a single dimension of the action space into a given number of bins.
-    
-    Args:
-        value: The value to discretize.
-        num_bins: The number of bins to discretize the dimension into.
-    
-    Returns:
-        The index of the bin that the value falls into.
-    """
-    bin_width = 1.0 / num_bins
-    return min(int(value / bin_width), num_bins - 1)
+def state_index_to_position(state_index, num_position_bins=10, min_position=[-1.0, -1.0, 0], max_position=[1.0, 1.0, 2]):
+    position = []
 
-def discretize_action(action, num_bins_per_dimension):
-    """
-    Discretize the entire action space into a given number of bins per dimension.
-    
-    Args:
-        action: The action array.
-        num_bins_per_dimension: The number of bins to discretize each dimension into.
-    
-    Returns:
-        The discretized action array.
-    """
-    discretized_action = []
-    for i, value in enumerate(action):
-        num_bins = num_bins_per_dimension[i]
-        discretized_value = discretize_action_dimension(value, num_bins)
-        discretized_action.append(discretized_value)
-    return discretized_action
+    for i in range(len(min_position)):
+        bin_index = state_index % num_position_bins
+        pos = min_position[i] + (max_position[i] - min_position[i]) * (bin_index + 0.5) / num_position_bins
+        position.append(pos)
+        state_index //= num_position_bins
+
+    return position
+
+def discretize_action(action, num_action_bins=3, min_action=[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0], max_action=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]):
+    action_index = 0
+
+    for i in range(len(action)):
+        bin_index = int(np.clip((action[i] - min_action[i]) / (max_action[i] - min_action[i]) * num_action_bins, 0, num_action_bins - 1))
+        action_index += bin_index * (num_action_bins ** i)
+
+    return action_index
+
+def action_index_to_action(action_index, num_action_bins=3, min_action=[-1.0] * 8, max_action=[1.0] * 8):
+    action = []
+
+    for i in range(len(min_action)):
+        bin_index = action_index % num_action_bins
+        act = min_action[i] + (max_action[i] - min_action[i]) * (bin_index + 0.5) / num_action_bins
+        action.append(act)
+        action_index //= num_action_bins
+
+    return action

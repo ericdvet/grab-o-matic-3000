@@ -6,7 +6,7 @@ from robosuite.utils.mjcf_utils import CustomMaterial
 
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 
-#from robosuite.models.arenas import TableArena
+from robosuite.models.arenas import TableArena
 from robosuite.models.arenas import EmptyArena
 #from robosuite.models.objects import BoxObject
 from robosuite.models.objects import BallObject
@@ -145,7 +145,7 @@ class NewLift(SingleArmEnv):
         render_visual_mesh=True,
         render_gpu_device_id=-1,
         control_freq=20,
-        horizon=1000000,
+        horizon=10000,
         ignore_done=False,
         hard_reset=True,
         camera_names="agentview",
@@ -259,7 +259,12 @@ class NewLift(SingleArmEnv):
         self.robots[0].robot_model.set_base_xpos(xpos)
 
         # load model for table top workspace
-        mujoco_arena = EmptyArena()
+        #mujoco_arena = EmptyArena()
+        mujoco_arena = TableArena(
+            table_full_size=self.table_full_size,
+            table_friction=self.table_friction,
+            table_offset=self.table_offset,
+        )
 
         # Arena always gets set to zero origin
         mujoco_arena.set_origin([0, 0, 0])

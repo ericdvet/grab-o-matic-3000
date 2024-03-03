@@ -22,6 +22,23 @@ env = robosuite.make(
 # initailiza model (random model here)
 model = NaiveModel(env.robots[0].dof)
 
+# Define RL parameters
+num_episodes = 1000
+max_steps_per_episode = 100
+
+# Define Q-learning parameters
+learning_rate = 0.1
+discount_rate = 0.99
+exploration_rate = 1
+max_exploration_rate = 1
+min_exploration_rate = 0.01
+exploration_decay_rate = 0.01
+
+# Initialize Q-values
+state_space_size = 10 ** 3
+action_space_size = 3 ** 8
+q_table = np.zeros((state_space_size, action_space_size)).astype(np.float32)
+
 # reset the environment
 env.reset()
 obs = None
@@ -29,82 +46,62 @@ obs = None
 ball_fall_delay = 0
 ball_fall_flag = False
 
-# q_table = np.zeros([env.observation_space.n, env.action_space.n])
-
-# Hyperparameters
-alpha = 0.1
-gamma = 0.6
-epsilon = 0.1
-
-total_epochs, total_penalties = 0, 0
-episodes = 100
-
-epochs = 0
-penalties, reward = 0, 0
-done = False
-
-q_table = np.zeros([5 ** 6, 5    ** 6])
+# env.robots[0].set_robot_joint_positions([1, 1, 1, 1, 1, 1, 1])
 
 low, high = env.action_spec
 action = np.random.uniform(low, high)
 obs, reward, done, info = env.step(action)  # take action in the environment
 
-state_space = np.concatenate((obs.get("robot0_eef_pos"),
-                                    obs.get("ball_pos")))
-num_bins_per_dimension = [5, 5, 5, 5, 5, 5]
-state_index = discretize_state(state_space, num_bins_per_dimension)
+state_index = discretize_state(obs.get("robot0_eef_pos"))
 
+for episode in range(num_episodes):
+    for oui in range(1000):
 
-num_bins_per_dimension_action = [5, 5, 5, 5, 5, 5]
-
-for i in range(1, 100):
-    while not env._check_success():
-        
-        action = model(env, obs) # sample random action
+        """action = model(env, obs) # sample random action
         obs, reward, done, info = env.step(action)  # take action in the environment
-                                    
-        """if random.uniform(0, 1) < epsilon:
+
+        # odict_keys(['robot0_joint_pos_cos', 'robot0_joint_pos_sin', 'robot0_joint_vel', 'robot0_eef_pos', 'robot0_eef_quat', 'robot0_gripper_qpos', 'robot0_gripper_qvel', 'ball_pos', 'ball_quat', 'gripper_to_ball_pos', 'robot0_proprio-state', 'object-state'])
+           
+        print(obs.get("robot0_eef_pos"))"""
+
+        if np.random.uniform(0, 1) > exploration_rate:
+            action_index = np.argmax(q_table[state_index, :])
+            action = action_index_to_action(action_index)
+        else:
             low, high = env.action_spec
             action = np.random.uniform(low, high)
-        else:
-            state_index = discretize_state(state_space, num_bins_per_dimension)
-            action = np.argmax(q_table[state_index]) # Exploit learned values
+            action_index = discretize_action(action)
+            
+        obs, reward, done, info = env.step(action)
 
-        obs, reward, done, info = env.step(action)  # take action in the environment
+        pos = obs.get("robot0_eef_pos")
+        next_state_index = discretize_state(pos)
 
-        discretized_action = discretize_action(action, num_bins_per_dimension_action)
+        # Update Q-value using Q-learning equation
+        old_q_value = q_table[state_index, action_index]
+        next_max_q_value = np.max(q_table[next_state_index, :])
+        new_q_value = old_q_value + learning_rate * (reward + discount_rate * next_max_q_value - old_q_value)
+        q_table[state_index, action_index] = new_q_value
 
-        state_space = np.concatenate((obs.get("robot0_eef_pos"), 
-                                    obs.get("ball_pos")))
-        state_index = discretize_state(state_space, num_bins_per_dimension)
+        state_index = next_state_index
 
+        #if (env._check_failure()):
+            #env.resetBallPosition()
 
-        old_value = q_table[state_index, discretized_action]
-        next_max = np.max(q_table[state_index])
-
-        new_value = (1 - alpha) * old_value + alpha * (reward + gamma * next_max)
-        q_table[state_index, discretized_action] = new_value
-        
-        if reward < -1:
-            penalties += 1"""
-
-        if ball_fall_flag == False:
+        """if ball_fall_flag == False:
             ball_fall_delay += 1
 
         if ball_fall_delay == 100:
             ball_fall_flag = True
             ball_fall_delay = 0
-            env.resetBallPosition()
-        
-        """if env._check_failure():
-            ball_fall_flag = False
-            penalties += 1"""
+            env.resetBallPosition()"""
             
-        epochs += 1
         env.render()  # render on display 
+     # Decay exploration rate
+    env.reset()
+    exploration_rate = min_exploration_rate + \
+        (max_exploration_rate - min_exploration_rate) * np.exp(-exploration_decay_rate * episode)
     
-print("Timesteps taken: {}".format(epochs))
-print("Penalties incurred: {}".format(penalties))
 env.render()  # render on display 
 
 #print("Timesteps taken: {}".format(epochs))
