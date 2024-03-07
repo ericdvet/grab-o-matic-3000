@@ -11,17 +11,35 @@ from math import *
 from scipy.spatial.transform import Rotation as R
 
 #Define a table of fruit velocities to apply (x,y,z)
-launchTable = [[0,0,3],[0,0.25,2.75],[0.15,0.15,2.5],[-0.15,0.25,4]]
 maxFruit = 4
+gravity = 1.635
+maxRobotReach = 1
+
+import random
+import math
+
+def initializeFruit(fruitIndex):
+    fruitNode = supervisor.getFromDef('fruit' + str(fruitIndex))
+    translation_field = fruitNode.getField('translation')
+
+    angle = random.uniform(0, 2 * math.pi)
+    height = random.uniform(1, 3)
+    radius = 4
+    x = radius * math.cos(angle)
+    y = radius * math.sin(angle)
+    
+    startingPosition = [x, y, height]
+    translation_field.setSFVec3f(startingPosition)
+    fruitNode = None
+
 
 def launchFruit(fruitIndex):
     fruitNode = supervisor.getFromDef('fruit' + str(fruitIndex))
-    print('Got fruit: %s' % fruitNode.getDef())
-    fruitNode.setVelocity([launchTable[fruitIndex][0],
-                          launchTable[fruitIndex][1],
-                          launchTable[fruitIndex][2], 0, 0, 0])
+    targetX, targetY = random.uniform(-maxRobotReach, maxRobotReach), random.uniform(-maxRobotReach, maxRobotReach)
+    translation_field = fruitNode.getField('translation')
+    x, y, z = translation_field.getSFVec3f()
+    fruitNode.setVelocity([targetX - x, targetY - y, 0, 0, 0, 0])
     print('Fruit%d launched!' % fruitIndex)
-    print(fruitNode.getVelocity())
     fruitNode = None
 
 def setFruit(fruitIndex, pos):
@@ -207,6 +225,9 @@ initialPos = [0, -1.57, 0.0, 0.0, 0.0, 0.0]
 for i in range(len(motorDevices)):
     motorDevices[i].setPosition(initialPos[i])
 
+for i in range(0,maxFruit):
+    initializeFruit(i)
+
  
 #Set up the first two joints for keyboard vel control
 motionAxis = 0
@@ -218,8 +239,6 @@ for i in range(len(motorDevices)):
 
 #Start the pan operation going:
 #motorDevices[motionAxis].setVelocity(1.0)
-
-caught = np.zeros(4)
 
 keyboard = Keyboard()
 keyboard.enable(1) #sampling period (msec)
@@ -333,19 +352,6 @@ while supervisor.step(timestep) != -1:
     goal.extend(rotation_field.getSFRotation())
     
     error = calculate_error(current, goal)
-
-    
-    for fruitIndex in range(4):
-        fruitNode = supervisor.getFromDef('fruit' + str(fruitIndex))
-        trans_field = fruitNode.getField("translation")
-        robotPos = [x_ee, y_ee, z_ee]
-        diff = np.zeros(3)
-        for i in range(3):
-            diff[i] = trans_field.getSFVec3f()[i] - robotPos[i]
-        if np.linalg.norm(diff) < 1.5:
-            caught[fruitIndex] = 1
-    
-    print(caught)
 
     joint_vel = calculate_joint_vel(error, jacobian)
     i = 0

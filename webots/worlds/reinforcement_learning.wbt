@@ -1,4 +1,14 @@
-#VRML_SIM R2022a utf8
+#VRML_SIM R2023b utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/fruits/protos/Apple.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/BrushedAluminium.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/floors/protos/Floor.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/ThreadMetalPlate.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/robots/universal_robots/protos/UR10e.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/apartment_structure/protos/Wall.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/factory/containers/protos/WoodenBox.proto"
+
 WorldInfo {
   info [
     "Universal Robot UR3e, UR5e and UR10e grasping cans using Robotiq 3F grippers."
@@ -20,8 +30,8 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation -0.2794709224360323 -0.041187160908317706 0.9592703588087489 3.466354426111385
-  position 5.236502799412754 2.3263218413284434 4.176642353980142
+  orientation -0.5773502691896257 0.5773502691896257 0.5773502691896257 2.0943245915045035
+  position 0 0 30
   exposure 1.7
 }
 Floor {
@@ -62,7 +72,7 @@ UR10e {
       translation 0 0.05 0
       rotation 0 0.7071067811862364 -0.7071067811862364 3.14159
       children [
-        Transform {
+        Pose {
           translation 0 0 0.05
           children [
             Shape {
@@ -77,7 +87,7 @@ UR10e {
             }
           ]
         }
-        Transform {
+        Pose {
           translation 0 0 0.04
           children [
             Shape {
@@ -103,21 +113,21 @@ TexturedBackground {
   texture "mars"
 }
 DEF fruit0 Apple {
-  translation -0.5 0.5 0.04999019000000002
+  translation 0 0 0
   rotation 0 -0.9999999999999999 0 1.5877149110025404
 }
 DEF fruit1 Apple {
-  translation 0.5 0.5 0.04999019000000002
+  translation 0 0 0
   rotation 0 -0.9999999999999999 0 1.5877149110025404
   name "apple1"
 }
 DEF fruit2 Apple {
-  translation -0.5 -0.5 0.04999019000000002
+  translation 0 0 0
   rotation 0 -0.9999999999999999 0 1.5877149110025404
   name "apple(2)"
 }
 DEF fruit3 Apple {
-  translation 0.5 -0.5 0.04999019000000002
+  translation 0 0 0
   rotation 0 -0.9999999999999999 0 1.5877149110025404
   name "apple(3)"
 }
