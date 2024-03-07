@@ -13,6 +13,7 @@ To install the necessary dependencies for running Grab-O-Matic 3000, please exec
 
 ```bash
 pip install -r requirements.txt
+```
 
 ## Acknowledgement
 
