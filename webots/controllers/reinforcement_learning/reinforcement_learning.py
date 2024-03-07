@@ -329,10 +329,14 @@ while supervisor.step(timestep) != -1:
         # print(joint_vel.item(i))
         if abs(joint_vel.item(i)) > motor.getMaxVelocity():
             vel = motor.getMaxVelocity() * joint_vel.item(i) / abs(joint_vel.item(i))
-            motor.setVelocity(vel)
+            # motor.setVelocity(vel)
+            motor.setVelocity(0)
+
 
         else:
-            motor.setVelocity(joint_vel.item(i))
+            # motor.setVelocity(joint_vel.item(i))
+            motor.setVelocity(0)
+
 
         i += 1
 
