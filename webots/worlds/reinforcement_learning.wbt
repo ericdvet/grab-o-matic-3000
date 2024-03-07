@@ -4,7 +4,7 @@ WorldInfo {
     "Universal Robot UR3e, UR5e and UR10e grasping cans using Robotiq 3F grippers."
   ]
   title "Universal Robot"
-  gravity 1.635
+  gravity 9.81
   basicTimeStep 8
   physicsDisableAngularThreshold 0.1
   contactProperties [
@@ -102,25 +102,15 @@ UR10e {
 TexturedBackground {
   texture "mars"
 }
-DEF fruit0 Apple {
-  translation -0.5 0.5 0.04999019000000002
+DEF fruit0 Ball {
+  translation 0 0 0
   rotation 0 -0.9999999999999999 0 1.5877149110025404
+  name "ball"
+  color 1.0 0.54 0.08
+  mass 0.055
+  contactMaterial "default"
 }
-DEF fruit1 Apple {
-  translation 0.5 0.5 0.04999019000000002
-  rotation 0 -0.9999999999999999 0 1.5877149110025404
-  name "apple1"
-}
-DEF fruit2 Apple {
-  translation -0.5 -0.5 0.04999019000000002
-  rotation 0 -0.9999999999999999 0 1.5877149110025404
-  name "apple(2)"
-}
-DEF fruit3 Apple {
-  translation 0.5 -0.5 0.04999019000000002
-  rotation 0 -0.9999999999999999 0 1.5877149110025404
-  name "apple(3)"
-}
+
 DEF TARGET Solid {
   translation 0 0 2.16
   children [

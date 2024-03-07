@@ -9,37 +9,57 @@ from controller import Keyboard
 import numpy as np
 from math import *
 from scipy.spatial.transform import Rotation as R
-
+import random
 #Define a table of fruit velocities to apply (x,y,z)
-launchTable = [[0,0,3],[0,0.25,2.75],[0.15,0.15,2.5],[-0.15,0.25,4]]
-maxFruit = 4
+launchTable = [[0,0,8]]
+maxFruit = 1
+maxRobotReach = 1.3 - 0.1
+ORIGIN = np.array([0,0,0.6])
+gravity = 9.81
+### WRITE FUNCTION TO SET FRUIT POSITION GIVEN ANGLE AND RADIUS FROM BASE OF THE ROBOT - SET TO GIVEN HEIGHT
+def genFruitPos():
+    fruitNode = supervisor.getFromDef('fruit0')
+    translation_field = fruitNode.getField('translation')
 
-def launchFruit(fruitIndex):
-    fruitNode = supervisor.getFromDef('fruit' + str(fruitIndex))
-    print('Got fruit: %s' % fruitNode.getDef())
-    fruitNode.setVelocity([launchTable[fruitIndex][0],
-                          launchTable[fruitIndex][1],
-                          launchTable[fruitIndex][2], 0, 0, 0])
-    print('Fruit%d launched!' % fruitIndex)
-    print(fruitNode.getVelocity())
+    angle = random.uniform(0, 2 * pi)
+    height = random.uniform(1, 3)
+    radius = 4
+    x = radius * cos(angle)
+    y = radius * sin(angle)
+    
+    startingPosition = [x, y, height]
+    translation_field.setSFVec3f(startingPosition)
+    return startingPosition
+
+### WRITE FUNCITON TO DETERMINE A RANDOM POINT ON SIDE THAT THE FRUIT IS PLACED
+### WRITE FUNCITON TO DETERMINE NEEDED VELOCITIES TO GO FROM POINT OF FRUIT TO POINT OF ROBOT
+
+def launchFruit():
+    tof = random.uniform(1,2)
+    fruitNode = supervisor.getFromDef('fruit0')
+    targetX, targetY, targetZ = random.uniform(-maxRobotReach, maxRobotReach), random.uniform(-maxRobotReach, maxRobotReach), random.uniform(0.25, 1.25)
+    translation_field = fruitNode.getField('translation')
+    x, y, z = translation_field.getSFVec3f()
+    velx = (targetX - x) / tof
+    vely = (targetY - y) / tof
+    velz = (targetZ - z + (1 / 2 * gravity * tof**2)) / tof
+    fruitNode.setVelocity([velx, vely, velz, 0, 0, 0])
     fruitNode = None
+    return ([velx, vely, velz], [targetX, targetY, targetZ])
 
-def setFruit(fruitIndex, pos):
-    fruitNode = supervisor.getFromDef('fruit' + str(fruitIndex))
-    fruitNode.setVelocity([0,0,0,0,0,0])
-    # Get the translation and rotational fields of 
-    tf = fruitNode.getField('translation')
-    rf = fruitNode.getField('rotation')
-    tf.setSFVec3f(pos)
-    rf.setSFRotation([0,0,1,0])
-    fruitNode = None
-
-def getFruitVels():
-    for i in range(0,maxFruit):
-        fruitNode = supervisor.getFromDef('fruit' + str(i))
-        print(fruitNode)
-        print('Fruit%d vel: %f' % (i, fruitNode.getVelocity()[2]))
-        fruitNode = None
+def isTouched(caught):
+    prevCaught = np.copy(caught)
+    for fruitIndex in range(maxFruit):
+        fruitNode = supervisor.getFromDef('fruit' + str(fruitIndex))
+        trans_field = fruitNode.getField("translation")
+        robotPos = [x_ee, y_ee, z_ee]
+        diff = np.zeros(3)
+        for i in range(3):
+            diff[i] = trans_field.getSFVec3f()[i] - robotPos[i]
+        if np.linalg.norm(diff) < 1.25:
+            caught[fruitIndex] = 1
+    if(not np.array_equal(prevCaught, caught)):
+        print(caught)
 
 def axis_euler(rot):
     x, y, z, angle = rot
@@ -166,7 +186,7 @@ def calculate_joint_vel(error, jacobian):
     return scaled_error @ jacobian
     
 def calculate_trajectory(x_init, y_init, z_init, x_vel, y_vel, z_vel, time_count):
-    return [x_init+(x_vel*time_count) , y_init+(y_vel*time_count),  z_init+(z_vel*time_count) - ((1.64/2) * (time_count**2))]
+    return [x_init+(x_vel*time_count) , y_init+(y_vel*time_count),  z_init+(z_vel*time_count) - ((gravity/2) * (time_count**2))]
 
 supervisor = Supervisor()
 # get the time step of the current world.
@@ -232,10 +252,7 @@ fruitLaunched = False
 
 # Trajectory format is [x_{0}, y_{0}, z_{0}, x_vel, y_vel, z_vel]
 x_init, y_init, z_init, x_vel, y_vel, z_vel = range(6)
-fruit0_traj = [-0.5, 0.5, 0.05, 0.0, 0.0, 3.0]
-fruit1_traj = [0.5, 0.5, 0.05, 0.0, 0.25, 2.75]
-fruit2_traj = [-0.5, -0.5, 0.05, 0.15, 0.15, 2.5]
-fruit3_traj = [0.5, -0.5, 0.05, -0.15, 0.25, 4.0]
+fruit0_traj = [-0.5, 0.5, 0.05, launchTable[0][0], launchTable[0][1], launchTable[0][2]]
 
 # Order is fruit 1 -> 2 -> 0 -> 3
 base_time = supervisor.getTime()
@@ -262,29 +279,23 @@ while supervisor.step(timestep) != -1:
             nextLaunch += fruitDelay
             fruitIndex += 1
     '''
+    if not fruitLaunched:
+        ballX, ballY, ballZ = genFruitPos()
+        vels, targetPos = launchFruit()
+        print('Launch all fruit!')
+        # for i in range(0,maxFruit):
+        #     launchFruit(i)
+        fruitLaunched = True
+        lastLaunch = currentTime
 
-    if currentTime < 0.75:
-        pose0 = calculate_trajectory(fruit1_traj[x_init], fruit1_traj[y_init], fruit1_traj[z_init], fruit1_traj[x_vel], fruit1_traj[y_vel], fruit1_traj[z_vel], currentTime-0.05)    
-        translation_field.setSFVec3f(pose0)
-    elif currentTime < 1.16:
-        pose1 = calculate_trajectory(fruit2_traj[x_init], fruit2_traj[y_init], fruit2_traj[z_init], fruit2_traj[x_vel], fruit2_traj[y_vel], fruit2_traj[z_vel], currentTime-0.01)    
-        translation_field.setSFVec3f(pose1)
-    elif currentTime < 2.82:
-        pose2 = calculate_trajectory(fruit0_traj[x_init], fruit0_traj[y_init], fruit0_traj[z_init], fruit0_traj[x_vel], fruit0_traj[y_vel], fruit0_traj[z_vel], currentTime-0.01)    
+    if currentTime < 1.5:
+        pose2 = calculate_trajectory(ballX, ballY, ballZ, vels[0], vels[1], vels[2], currentTime-0.01-lastLaunch)    
         translation_field.setSFVec3f(pose2)
-    elif currentTime < 4.5:
-        pose3 = calculate_trajectory(fruit3_traj[x_init], fruit3_traj[y_init], fruit3_traj[z_init], fruit3_traj[x_vel], fruit3_traj[y_vel], fruit3_traj[z_vel], currentTime+0.02)    
-        translation_field.setSFVec3f(pose3)
     else:
         pose4 = [-0.18699999999999994, 0.645, 1.169352]
-        # setFruit(3, [-1.5, 1.5, 1.05])
         translation_field.setSFVec3f(pose4)
 
-    if not fruitLaunched:
-        print('Launch all fruit!')
-        for i in range(0,maxFruit):
-            launchFruit(i)
-        fruitLaunched = True
+
                 
             
     #getFruitVels()
@@ -334,25 +345,14 @@ while supervisor.step(timestep) != -1:
     
     error = calculate_error(current, goal)
 
-    
-    for fruitIndex in range(4):
-        fruitNode = supervisor.getFromDef('fruit' + str(fruitIndex))
-        trans_field = fruitNode.getField("translation")
-        robotPos = [x_ee, y_ee, z_ee]
-        diff = np.zeros(3)
-        for i in range(3):
-            diff[i] = trans_field.getSFVec3f()[i] - robotPos[i]
-        if np.linalg.norm(diff) < 1.5:
-            caught[fruitIndex] = 1
-    
-    print(caught)
+    isTouched(caught)
 
     joint_vel = calculate_joint_vel(error, jacobian)
     i = 0
     for motor in motorDevices:
         # print(joint_vel.item(i))
         if abs(joint_vel.item(i)) > motor.getMaxVelocity():
-            vel = motor.getMaxVelocity() * joint_vel.item(i) / abs(joint_vel.item(i))
+            vel = (motor.getMaxVelocity() - 0.0001) * joint_vel.item(i) / abs(joint_vel.item(i))
             motor.setVelocity(vel)
         else:
             motor.setVelocity(joint_vel.item(i))
