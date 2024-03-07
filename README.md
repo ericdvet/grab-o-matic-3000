@@ -7,14 +7,22 @@
 **Course Instructor:**
 - Dr. Tae Huh, email: thuh@ucsc.edu
 
+## Installation
+
+To install the necessary dependencies for running Grab-O-Matic 3000, please execute the following command:
+
+```bash
+pip install -r requirements.txt
+
 ## Acknowledgement
 
-[**robosuite**](https://robosuite.ai)
+[**webots**](https://cyberbotics.com/)
 ```bibtex
-@inproceedings{robosuite2020,
-  title={robosuite: A Modular Simulation Framework and Benchmark for Robot Learning},
-  author={Yuke Zhu and Josiah Wong and Ajay Mandlekar and Roberto Mart\'{i}n-Mart\'{i}n and Abhishek Joshi and Soroush Nasiriany and Yifeng Zhu},
-  booktitle={arXiv preprint arXiv:2009.12293},
-  year={2020}
+@inproceedings{webots2022,
+  title={Webots: Professional Mobile Robot Simulation},
+  author={Olivier Michel and Fabien Rohrer and David Mansolino and Hans W. Guesgen},
+  booktitle={Proceedings of the 2022 Conference on Robot Simulation and Synthesis (RoSS)},
+  year={2022}
 }
+
 ```
