@@ -102,13 +102,9 @@ UR10e {
 TexturedBackground {
   texture "mars"
 }
-DEF fruit0 Ball {
+DEF fruit0 Apple {
   translation 0 0 0
-  rotation 0 -0.9999999999999999 0 1.5877149110025404
-  name "ball"
-  color 1.0 0.54 0.08
-  mass 0.055
-  contactMaterial "default"
+  rotation 0 0 1 0
 }
 
 DEF TARGET Solid {

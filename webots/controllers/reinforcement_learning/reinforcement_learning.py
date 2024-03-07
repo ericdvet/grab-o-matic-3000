@@ -2,6 +2,7 @@
 
 # You may need to import some classes of the controller module. Ex:
 #  from controller import Robot, Motor, DistanceSensor
+import time as t
 from time import time
 from controller import Robot
 from controller import Supervisor
@@ -13,7 +14,7 @@ import random
 #Define a table of fruit velocities to apply (x,y,z)
 launchTable = [[0,0,8]]
 maxFruit = 1
-maxRobotReach = 1.3 - 0.1
+maxRobotReach = 1
 ORIGIN = np.array([0,0,0.6])
 gravity = 9.81
 ### WRITE FUNCTION TO SET FRUIT POSITION GIVEN ANGLE AND RADIUS FROM BASE OF THE ROBOT - SET TO GIVEN HEIGHT
@@ -260,6 +261,8 @@ print(base_time)
 # pose0 = calculate_trajectory(fruit1_traj[x_init], fruit1_traj[y_init], fruit1_traj[z_init]-0.6, fruit1_traj[x_vel], fruit1_traj[y_vel], fruit1_traj[z_vel], 0.75)
 # translation_field.setSFVec3f(pose0)
 # rotation_field.setSFRotation([0, 1 ,0 ,pi/2])
+t.sleep(2)
+
 while supervisor.step(timestep) != -1:
     # Read the sensors:
     # Enter here functions to read sensor data, like:
@@ -279,6 +282,7 @@ while supervisor.step(timestep) != -1:
             nextLaunch += fruitDelay
             fruitIndex += 1
     '''
+
     if not fruitLaunched:
         ballX, ballY, ballZ = genFruitPos()
         vels, targetPos = launchFruit()
@@ -288,12 +292,13 @@ while supervisor.step(timestep) != -1:
         fruitLaunched = True
         lastLaunch = currentTime
 
-    if currentTime < 1.5:
+    if (currentTime - lastLaunch) < 3.5:
         pose2 = calculate_trajectory(ballX, ballY, ballZ, vels[0], vels[1], vels[2], currentTime-0.01-lastLaunch)    
-        translation_field.setSFVec3f(pose2)
+        translation_field.setSFVec3f(targetPos)
     else:
-        pose4 = [-0.18699999999999994, 0.645, 1.169352]
-        translation_field.setSFVec3f(pose4)
+        # pose4 = [-0.18699999999999994, 0.645, 1.169352]
+        # translation_field.setSFVec3f(pose4)
+        fruitLaunched = False
 
 
                 
