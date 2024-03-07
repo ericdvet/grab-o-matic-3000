@@ -219,7 +219,7 @@ for i in range(len(motorDevices)):
 #Start the pan operation going:
 #motorDevices[motionAxis].setVelocity(1.0)
 
-
+caught = np.zeros(4)
 
 keyboard = Keyboard()
 keyboard.enable(1) #sampling period (msec)
@@ -277,7 +277,7 @@ while supervisor.step(timestep) != -1:
         translation_field.setSFVec3f(pose3)
     else:
         pose4 = [-0.18699999999999994, 0.645, 1.169352]
-        setFruit(3, [-1.5, 1.5, 1.05])
+        # setFruit(3, [-1.5, 1.5, 1.05])
         translation_field.setSFVec3f(pose4)
 
     if not fruitLaunched:
@@ -333,6 +333,19 @@ while supervisor.step(timestep) != -1:
     goal.extend(rotation_field.getSFRotation())
     
     error = calculate_error(current, goal)
+
+    
+    for fruitIndex in range(4):
+        fruitNode = supervisor.getFromDef('fruit' + str(fruitIndex))
+        trans_field = fruitNode.getField("translation")
+        robotPos = [x_ee, y_ee, z_ee]
+        diff = np.zeros(3)
+        for i in range(3):
+            diff[i] = trans_field.getSFVec3f()[i] - robotPos[i]
+        if np.linalg.norm(diff) < 1.5:
+            caught[fruitIndex] = 1
+    
+    print(caught)
 
     joint_vel = calculate_joint_vel(error, jacobian)
     i = 0
