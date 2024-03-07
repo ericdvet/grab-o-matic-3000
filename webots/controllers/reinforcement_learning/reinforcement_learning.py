@@ -24,6 +24,16 @@ def launchFruit(fruitIndex):
     print(fruitNode.getVelocity())
     fruitNode = None
 
+def setFruit(fruitIndex, pos):
+    fruitNode = supervisor.getFromDef('fruit' + str(fruitIndex))
+    fruitNode.setVelocity([0,0,0,0,0,0])
+    # Get the translation and rotational fields of 
+    tf = fruitNode.getField('translation')
+    rf = fruitNode.getField('rotation')
+    tf.setSFVec3f(pos)
+    rf.setSFRotation([0,0,1,0])
+    fruitNode = None
+
 def getFruitVels():
     for i in range(0,maxFruit):
         fruitNode = supervisor.getFromDef('fruit' + str(i))
@@ -191,7 +201,7 @@ for motorName in motorNames:
 
 #initialPos = [0, 0, 0, 0, 0, 0];
 #initialPos = [-0.5, -0.5, -0.5, -0.5, -0.5, -0.5];
-initialPos = [0, -1.57, 0.0, 0.0, 0.0, 0.0];
+initialPos = [0, -1.57, 0.0, 0.0, 0.0, 0.0]
     
  # Initial position
 for i in range(len(motorDevices)):
@@ -267,6 +277,7 @@ while supervisor.step(timestep) != -1:
         translation_field.setSFVec3f(pose3)
     else:
         pose4 = [-0.18699999999999994, 0.645, 1.169352]
+        setFruit(3, [-1.5, 1.5, 1.05])
         translation_field.setSFVec3f(pose4)
 
     if not fruitLaunched:
@@ -329,13 +340,9 @@ while supervisor.step(timestep) != -1:
         # print(joint_vel.item(i))
         if abs(joint_vel.item(i)) > motor.getMaxVelocity():
             vel = motor.getMaxVelocity() * joint_vel.item(i) / abs(joint_vel.item(i))
-            # motor.setVelocity(vel)
-            motor.setVelocity(0)
-
-
+            motor.setVelocity(vel)
         else:
-            # motor.setVelocity(joint_vel.item(i))
-            motor.setVelocity(0)
+            motor.setVelocity(joint_vel.item(i))
 
 
         i += 1
