@@ -15,16 +15,14 @@ import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
 import joblib
 
-
-launchTable = [[0,0,8]]
-maxFruit = 1
-maxRobotReach = 0.75
-minRobotReach = 0.5
+# Important controller variables
 LEARNING = False
-
-ORIGIN = np.array([0,0,0.6])
 gravity = 9.81
-### WRITE FUNCTION TO SET FRUIT POSITION GIVEN ANGLE AND RADIUS FROM BASE OF THE ROBOT - SET TO GIVEN HEIGHT
+
+# Generate the position of the fruit in the Webots simulation environment.
+# Paramters: None
+# Returns:
+#       list: A list containing the x, y, and z coordinates of the fruit position.
 def genFruitPos():
     fruitNode = supervisor.getFromDef('fruit0')
     translation_field = fruitNode.getField('translation')
@@ -39,12 +37,16 @@ def genFruitPos():
     translation_field.setSFVec3f(startingPosition)
     return startingPosition
 
-### WRITE FUNCITON TO DETERMINE A RANDOM POINT ON SIDE THAT THE FRUIT IS PLACED
-### WRITE FUNCITON TO DETERMINE NEEDED VELOCITIES TO GO FROM POINT OF FRUIT TO POINT OF ROBOT
-
+# Function to launch a fruit from a random position towards a random target point within the robot's reachable area
+# Parameters: None
+# Returns: Tuple containing:
+#       List of velocities [velx, vely, velz] to launch the fruit towards the target
+#       List of target coordinates [targetX, targetY, targetZ]
 def launchFruit():
     tof = random.uniform(1,2)
     fruitNode = supervisor.getFromDef('fruit0')
+    maxRobotReach = 0.75
+    minRobotReach = 0.5
     if random.choice([True, False]):
         targetX = random.uniform(-maxRobotReach, -minRobotReach)
     else:
@@ -65,24 +67,27 @@ def launchFruit():
     fruitNode = None
     return ([velx, vely, velz], [targetX, targetY, targetZ])
 
-def isTouched(caught, robotPos):
-    prevCaught = np.copy(caught)
-    for fruitIndex in range(maxFruit):
-        fruitNode = supervisor.getFromDef('fruit' + str(fruitIndex))
-        trans_field = fruitNode.getField("translation")
-        # robotPos = [x_ee, y_ee, z_ee]
-        diff = np.zeros(3)
-        for i in range(3):
-            diff[i] = abs(trans_field.getSFVec3f()[i] - robotPos[i])
-        if np.linalg.norm(diff) < 0.1:
-            caught[fruitIndex] = 1
-            #print("Caught!")
-            return True
-        else:
-            return False
-    if(not np.array_equal(prevCaught, caught)):
-        print(caught)
+# Function to determine if the fruit is touched by the robot
+# Parameters:
+#       robotPos: List containing the position of the robot [x, y, z]
+# Returns:
+#       Boolean value indicating whether the fruit is touched by the robot (True) or not (False)
+def isTouched(robotPos):
+    fruitNode = supervisor.getFromDef('fruit0')
+    trans_field = fruitNode.getField("translation")
+    diff = np.zeros(3)
+    for i in range(3):
+        diff[i] = abs(trans_field.getSFVec3f()[i] - robotPos[i])
+    if np.linalg.norm(diff) < 0.1:
+        return True
+    else:
+        return False
 
+# Function to convert rotation represented as axis-angle to Euler angles
+# Parameters:
+#       rot (list): List containing the rotation parameters [x, y, z, angle]
+# Returns:
+#       list: List of Euler angles [roll, yaw, pitch]
 def axis_euler(rot):
     x, y, z, angle = rot
     mag = sqrt(x*x + y*y + z*z)
@@ -94,6 +99,11 @@ def axis_euler(rot):
     roll = atan2(x * sin(angle)-y * z * (1 - cos(angle)) , 1 - (x**2 + z**2) * (1 - cos(angle)))
     return [-roll, -yaw, pitch]
 
+# Function to convert Euler angles to axis-angle representation
+# Parameters:
+#       euler (list): List of Euler angles [roll, yaw, pitch]
+# Returns:
+#       list: List containing the axis-angle representation [x, y, z, angle]
 def euler_axis(euler):
     c1 = cos(euler[0] / 2)
     c2 = cos(euler[1] / 2)
@@ -110,12 +120,25 @@ def euler_axis(euler):
     
     return[x, y, z, angle]
 
+# Function to generate the homogeneous transformation matrix for a given set of DH parameters
+# Parameters:
+#       theta (float): The joint angle in radians
+#       a (float): The link length in meters
+#       d (float): The link offset in meters
+#       alpha (float): The twist angle in radians
+# Returns:
+#       numpy.matrix: Homogeneous transformation matrix
 def generate_H(theta, a, d, alpha):
     return np.asmatrix([[cos(theta), -sin(theta) * cos(alpha), sin(theta) * sin(alpha), a * cos(theta)], 
                         [sin(theta), cos(theta) * cos(alpha), -cos(theta) * sin(alpha), a * sin(theta)], 
                         [0, sin(alpha), cos(alpha), d], 
                         [0, 0, 0, 1]])
 
+# Function to generate the final transformation matrix for a robotic arm
+# Parameters:
+#       theta_vals (list): List of joint angles in radians
+# Returns:
+#       numpy.matrix: Final transformation matrix
 def generate_final_transform(theta_vals):
     alpha_vals = [pi/2, 0, 0, pi/2, -pi/2, 0]
     a_vals = [0, -0.6127, -0.57155, 0, 0, 0]
@@ -136,6 +159,11 @@ def generate_final_transform(theta_vals):
 
     return H_1_6    
 
+# Function to create the Jacobian matrix for a robotic arm
+# Parameters:
+#       theta_vals (list): List of joint angles in radians
+# Returns:
+#       numpy.array: The Jacobian matrix
 def create_jacobian(theta_vals):
     alpha_vals = [pi/2, 0, 0, pi/2, -pi/2, 0]
     a_vals = [0, -0.6127, -0.57155, 0, 0, 0]
@@ -181,6 +209,12 @@ def create_jacobian(theta_vals):
     jacobian = np.concatenate((linear_jacobian, angular_jacobian), axis = 0)
     return jacobian
 
+# Function to calculate the error between the given and goal positions and orientations
+# Parameters:
+#       given (list): List containing the given position and orientation [x, y, z, yaw, pitch, roll]
+#       goal (list): List containing the goal position and orientation [x_pos, y_pos, z_pos, x_axis, y_axis, z_axis, angle]
+# Returns:
+#       numpy.array: Error vector
 def calculate_error(given, goal):
     # Given is expected to be [x, y, z, yaw, pitch, roll]
     # Goal is given in [x_pos, y_pos, z_pos, x_axis, y_axis, z_axis, angle]
@@ -188,7 +222,6 @@ def calculate_error(given, goal):
     return np.array([goal[0] - given[0],goal[1] - given[1],goal[2] - given[2] - 0.6, euler_angles[0] - given[3], euler_angles[1] - given[4], euler_angles[2] - given[5]])
 
 def euler_from_Htrans(H):
-
     # beta = -np.arcsin(H[2,0])
     # alpha = np.arctan2(H[2,1]/np.cos(beta),H[2,2]/np.cos(beta))
     # gamma = np.arctan2(H[1,0]/np.cos(beta),H[0,0]/np.cos(beta))
@@ -198,6 +231,12 @@ def euler_from_Htrans(H):
     r = [r.item(0), r.item(1), r.item(2)]
     return r
 
+# Function to calculate the joint velocities based on the error and Jacobian matrix
+# Parameters:
+#       error (numpy.array): Error vector
+#       jacobian (numpy.array): The Jacobian matrix
+# Returns:
+#       numpy.array: Joint velocities
 def calculate_joint_vel(error, jacobian):
     kPt = 200
     kPa = 7.5
@@ -206,13 +245,11 @@ def calculate_joint_vel(error, jacobian):
     scaled_error = np.concatenate((error[:3] * kPt, error[3:] * kPa), axis=0)
     # return np.linalg.inv(jacobian) @ scaled_error
     return scaled_error @ jacobian
-    
-def calculate_trajectory(x_init, y_init, z_init, x_vel, y_vel, z_vel, time_count):
-    return [x_init+(x_vel*time_count) , y_init+(y_vel*time_count),  z_init+(z_vel*time_count) - ((gravity/2) * (time_count**2))]
 
-# -- Main -- 
+# ============================== Main ============================== 
 
 supervisor = Supervisor()
+
 # get the time step of the current world.
 timestep = int(supervisor.getBasicTimeStep())
 
@@ -220,9 +257,9 @@ timestep = int(supervisor.getBasicTimeStep())
 target = supervisor.getFromDef('TARGET')
 translation_field = target.getField('translation')
 rotation_field = target.getField('rotation')
-
 target = super
 
+# Initialize robot joints
 print('Using timestep: %d' % timestep)
 motorNames = ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 'wrist_1_joint', \
                 'wrist_2_joint', 'wrist_3_joint']
@@ -235,13 +272,11 @@ for motorName in motorNames:
     position_sensor.enable(timestep)
     motorDevices.append(motor)
 
+# Initial position
 initialPos = [0, -1.57, 0.0, 0.0, 0.0, 0.0]
-    
- # Initial position
 for i in range(len(motorDevices)):
     motorDevices[i].setPosition(initialPos[i])
 
- 
 #Set up the first two joints for keyboard vel control
 motionAxis = 0
 #Enable vel control for the pan:
@@ -249,35 +284,19 @@ for i in range(len(motorDevices)):
     motorDevices[i].setPosition(float('+inf'))
     motorDevices[i].setVelocity(0.0)
 
-caught = np.zeros(4)
-
-keyboard = Keyboard()
-keyboard.enable(1) #sampling period (msec)
-
 # Initialize data collection variables
 observations = []
 actions = []
 outcomes = []
 
-fruitDelay = 700 #time in between fruit launches
-nextLaunch = fruitDelay #when is the next launch scheduled?
+# Initialize misc. simulation variables
 currentTime = 0
-fruitIndex = 0
 fruitLaunched = False
-
-x_init, y_init, z_init, x_vel, y_vel, z_vel = range(6)
-fruit0_traj = [-0.5, 0.5, 0.05, launchTable[0][0], launchTable[0][1], launchTable[0][2]]
-
-
 base_time = supervisor.getTime()
-print(base_time)
-
 numRuns = 0
-
 ball_caught = False
 
 if not LEARNING:
-    # Define the same ImitationModel class as before
     class ImitationModel(nn.Module):
         def __init__(self, input_size, output_size):
             super(ImitationModel, self).__init__()
@@ -295,14 +314,18 @@ if not LEARNING:
     model = ImitationModel(input_size=6, output_size=7)
     model.load_state_dict(torch.load('imitation_model.pth'))
     model.eval()
+    
+    # Load scalar (not sure if necessary?)
     scaler = joblib.load('scaler.pkl')
 
 while supervisor.step(timestep) != -1:
+    
+    # Shoot ball towards robot arm at regular intervals
     if not fruitLaunched:
         ballX, ballY, ballZ = genFruitPos()
         vels, targetPos = launchFruit()
         ball_initial_info = [ballX, ballY, ballZ, vels[0], vels[1], vels[2]]
-        print('Balls incoming!')
+        print('Trial ', numRuns)
         fruitLaunched = True
         lastLaunch = currentTime
 
@@ -313,49 +336,32 @@ while supervisor.step(timestep) != -1:
         fruitLaunched = False
         numRuns += 1
         if ball_caught:
-            print("caught!")
-        outcomes.append(ball_caught)
-        actions.append(goal)
-        observations.append(ball_initial_info)
+            print("Ball caught!")
+        if LEARNING:
+            outcomes.append(ball_caught)
+            actions.append(goal)
+            observations.append(ball_initial_info)
         ball_caught = False
-   
-    key = keyboard.getKey()
-    if key == Keyboard.LEFT:
-        motorDevices[0].setVelocity(motorDevices[0].getVelocity() + 0.1)
-    elif key == Keyboard.RIGHT:
-        motorDevices[0].setVelocity(motorDevices[0].getVelocity() - 0.1)     
-
-    if key == Keyboard.UP:
-        motorDevices[1].setVelocity(motorDevices[1].getVelocity() + 0.1)
-    elif key == Keyboard.DOWN:
-        motorDevices[1].setVelocity(motorDevices[1].getVelocity() - 0.1) 
-    
-    if key == ord('L'): #webots capitalizes all keys apparently
-        if not fruitLaunched:
-            print('Launch all fruit!')
-            for i in range(0,maxFruit):
-                launchFruit(i)
-            fruitLaunched = True
             
-    # currentTime += timestep/100
     currentTime = supervisor.getTime()
-
+    
+    # Calculate current motor location
     motor_ang = []
     for motor in motorDevices:
         motor_ang.append(motor.getPositionSensor().getValue())
-    
+        
     jacobian = create_jacobian(motor_ang)
     H = generate_final_transform(motor_ang)
     x_ee,y_ee,z_ee = H[0,3], H[1, 3], H[2, 3]
     yaw, pitch, roll = euler_from_Htrans(H)
     current = [x_ee,y_ee,z_ee,yaw,pitch,roll]
-
-    goal = translation_field.getSFVec3f()
-    goal[0] *= -1
-    goal[1] *= -1
-    goal.extend(rotation_field.getSFRotation())
-    
+        
     if LEARNING:
+        # Calculate error based upon calculated error
+        goal = translation_field.getSFVec3f()
+        goal[0] *= -1
+        goal[1] *= -1
+        goal.extend(rotation_field.getSFRotation())
         error = calculate_error(current, goal)
     else:
         # Preprocess observations for model
@@ -369,6 +375,7 @@ while supervisor.step(timestep) != -1:
         predicted_goal = predicted_goal.tolist()
         error = calculate_error(current, predicted_goal[0])
 
+    # Use inverse kinematics to catch ball
     joint_vel = calculate_joint_vel(error, jacobian)
     i = 0
     for motor in motorDevices:
@@ -380,11 +387,12 @@ while supervisor.step(timestep) != -1:
             motor.setVelocity(joint_vel.item(i))
         i += 1
     
+    # Check if ball is caught
     robot_pos = [-x_ee, -y_ee, z_ee + 0.6]
-
-    if isTouched(caught, robot_pos):
+    if isTouched(robot_pos):
         ball_caught = True
     
+    # Store observation and action data
     if LEARNING:
         if (numRuns == 1000):
             np.savez("observations.npz", observations)
