@@ -7,21 +7,13 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import joblib
 
-maxRobotReach = 0.75
-minRobotReach = 0.5
+numberOfTests = 100
 gravity = 9.81
 
-def genFruitPos():
-    angle = random.uniform(0, 2 * pi)
-    height = 1
-    radius = 4
-    x = radius * cos(angle)
-    y = radius * sin(angle)
-    
-    startingPosition = [x, y, height]
-    return startingPosition
+def generateTrainingData():
+    maxRobotReach = 0.75
+    minRobotReach = 0.5
 
-def launchFruit():
     tof = random.uniform(1,2)
     if random.choice([True, False]):
         targetX = random.uniform(-maxRobotReach, -minRobotReach)
@@ -34,13 +26,19 @@ def launchFruit():
         targetY = random.uniform(minRobotReach, maxRobotReach)
 
     targetZ = random.uniform(0.25, 1.25)
-    x, y, z = genFruitPos()
+    
+    angle = random.uniform(0, 2 * pi)
+    height = 1
+    radius = 4
+    x = radius * cos(angle)
+    y = radius * sin(angle)
+    z = height
+
     velx = (targetX - x) / tof
     vely = (targetY - y) / tof
     velz = (targetZ - z + (1 / 2) * gravity * tof**2) / tof
     return ([x, y, z], [velx, vely, velz], [targetX, targetY, targetZ, 0, 0, 1, 0])
 
-# Define the same ImitationModel class as before
 class ImitationModel(nn.Module):
     def __init__(self, input_size, output_size):
         super(ImitationModel, self).__init__()
@@ -56,21 +54,18 @@ class ImitationModel(nn.Module):
 
 new_observations = []
 new_correct_actions = []
-for i in range(100):
-    fruitPos, fruitVel, target = launchFruit()
+for i in range(numberOfTests):
+    fruitPos, fruitVel, target = generateTrainingData()
     new_observations.append([fruitPos[0], fruitPos[1], fruitPos[2], fruitVel[0], fruitVel[1], fruitVel[2]])
     target_pov_correction = [-target[0], -target[1], target[2], target[3], target[4], target[5], target[6]]
     new_correct_actions.append(target_pov_correction)
 new_observations = np.array(new_observations)
 new_correct_actions = np.array(new_correct_actions)
 
-# Load the trained model
 model = ImitationModel(input_size=new_observations.shape[1], output_size=new_correct_actions.shape[1])
 model.load_state_dict(torch.load('imitation_model.pth'))
 model.eval()
 
-# Assuming you have new observations stored in a variable named 'new_observations'
-# Preprocess the new observations if necessary (e.g., scale them using the same scaler used during training)
 scaler = joblib.load('scaler.pkl')
 new_observations_scaled = scaler.fit_transform(new_observations)
 
@@ -81,15 +76,9 @@ new_observations_tensor = torch.tensor(new_observations_scaled, dtype=torch.floa
 with torch.no_grad():
     predicted_actions = model(new_observations_tensor)
 
-
-for i in range(1, 100):
+for i in range(1, numberOfTests):
     temp = abs(predicted_actions[i] - new_correct_actions[i])
-    #print(np.linalg.norm(temp[0:7]))
-    print(predicted_actions[i][2], " v. ", new_correct_actions[i][2])
-
-# The predicted_actions variable now contains the predicted actions corresponding to the new observations
-
-
+    
 # Extract x, y, z components of predicted actions and correct actions
 predicted_x = predicted_actions[:, 0]
 predicted_y = predicted_actions[:, 1]

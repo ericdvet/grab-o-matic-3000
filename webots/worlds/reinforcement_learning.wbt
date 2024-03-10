@@ -102,7 +102,7 @@ UR10e {
 TexturedBackground {
   texture "mars"
 }
-DEF fruit0 Ball {
+DEF ball Ball {
   translation 0 0 0
   rotation 0 1 0 0
   name "ball"

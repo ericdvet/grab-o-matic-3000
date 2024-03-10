@@ -19,13 +19,13 @@ import joblib
 LEARNING = False
 gravity = 9.81
 
-# Generate the position of the fruit in the Webots simulation environment.
+# Generate the position of the ball in the Webots simulation environment.
 # Paramters: None
 # Returns:
-#       list: A list containing the x, y, and z coordinates of the fruit position.
-def genFruitPos():
-    fruitNode = supervisor.getFromDef('fruit0')
-    translation_field = fruitNode.getField('translation')
+#       list: A list containing the x, y, and z coordinates of the ball position.
+def genBallPos():
+    ballNode = supervisor.getFromDef('ball')
+    translation_field = ballNode.getField('translation')
 
     angle = random.uniform(0, 2 * pi)
     height = 1
@@ -37,14 +37,14 @@ def genFruitPos():
     translation_field.setSFVec3f(startingPosition)
     return startingPosition
 
-# Function to launch a fruit from a random position towards a random target point within the robot's reachable area
+# Function to launch a ball from a random position towards a random target point within the robot's reachable area
 # Parameters: None
 # Returns: Tuple containing:
-#       List of velocities [velx, vely, velz] to launch the fruit towards the target
+#       List of velocities [velx, vely, velz] to launch the ball towards the target
 #       List of target coordinates [targetX, targetY, targetZ]
-def launchFruit():
+def launchBall():
     tof = random.uniform(1,2)
-    fruitNode = supervisor.getFromDef('fruit0')
+    ballNode = supervisor.getFromDef('ball')
     maxRobotReach = 0.75
     minRobotReach = 0.5
     if random.choice([True, False]):
@@ -58,23 +58,23 @@ def launchFruit():
         targetY = random.uniform(minRobotReach, maxRobotReach)
 
     targetZ = random.uniform(0.25, 1.25)
-    translation_field = fruitNode.getField('translation')
+    translation_field = ballNode.getField('translation')
     x, y, z = translation_field.getSFVec3f()
     velx = (targetX - x) / tof
     vely = (targetY - y) / tof
     velz = (targetZ - z + (1 / 2) * gravity * tof**2) / tof
-    fruitNode.setVelocity([velx, vely, velz, 0, 0, 0])
-    fruitNode = None
+    ballNode.setVelocity([velx, vely, velz, 0, 0, 0])
+    ballNode = None
     return ([velx, vely, velz], [targetX, targetY, targetZ])
 
-# Function to determine if the fruit is touched by the robot
+# Function to determine if the ball is touched by the robot
 # Parameters:
 #       robotPos: List containing the position of the robot [x, y, z]
 # Returns:
-#       Boolean value indicating whether the fruit is touched by the robot (True) or not (False)
+#       Boolean value indicating whether the ball is touched by the robot (True) or not (False)
 def isTouched(robotPos):
-    fruitNode = supervisor.getFromDef('fruit0')
-    trans_field = fruitNode.getField("translation")
+    ballNode = supervisor.getFromDef('ball')
+    trans_field = ballNode.getField("translation")
     diff = np.zeros(3)
     for i in range(3):
         diff[i] = abs(trans_field.getSFVec3f()[i] - robotPos[i])
@@ -204,8 +204,7 @@ def create_jacobian(theta_vals):
 
     angular_jacobian = np.concatenate((np.transpose(r_0_0), np.transpose(r_0_1), np.transpose(r_0_2), np.transpose(r_0_3), \
         np.transpose(r_0_4), np.transpose(r_0_5)), axis = 1)
-
-                                                                                                                                                         
+                                                               
     jacobian = np.concatenate((linear_jacobian, angular_jacobian), axis = 0)
     return jacobian
 
@@ -291,7 +290,7 @@ outcomes = []
 
 # Initialize misc. simulation variables
 currentTime = 0
-fruitLaunched = False
+ballLaunched = False
 base_time = supervisor.getTime()
 numRuns = 0
 ball_caught = False
@@ -321,22 +320,21 @@ if not LEARNING:
 while supervisor.step(timestep) != -1:
     
     # Shoot ball towards robot arm at regular intervals
-    if not fruitLaunched:
-        ballX, ballY, ballZ = genFruitPos()
-        vels, targetPos = launchFruit()
+    if not ballLaunched:
+        ballX, ballY, ballZ = genBallPos()
+        vels, targetPos = launchBall()
         ball_initial_info = [ballX, ballY, ballZ, vels[0], vels[1], vels[2]]
-        print('Trial ', numRuns)
-        fruitLaunched = True
+        print('\nTrial ', numRuns, end = '')
+        ballLaunched = True
         lastLaunch = currentTime
 
     if (currentTime - lastLaunch) < 3.5:
-        pose2 = calculate_trajectory(ballX, ballY, ballZ, vels[0], vels[1], vels[2], currentTime-0.01-lastLaunch)    
         translation_field.setSFVec3f(targetPos)
     else:
-        fruitLaunched = False
+        ballLaunched = False
         numRuns += 1
         if ball_caught:
-            print("Ball caught!")
+            print(" Success", end = '')
         if LEARNING:
             outcomes.append(ball_caught)
             actions.append(goal)

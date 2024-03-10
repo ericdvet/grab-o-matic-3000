@@ -6,7 +6,6 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 import joblib
 
-
 # Load data
 data_obs = np.load('observations.npz')
 data_act = np.load('actions.npz')
@@ -28,7 +27,6 @@ outcomes_encoded = label_encoder.fit_transform(outcomes)
 obs_train, obs_test, act_train, act_test, out_train, out_test = train_test_split(
     observations_scaled, actions, outcomes_encoded, test_size=0.2, random_state=42
 )
-
 
 # Convert data to PyTorch tensors
 obs_train_tensor = torch.tensor(obs_train, dtype=torch.float32)
@@ -72,8 +70,6 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
         running_loss += loss.item()
-
-    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss / len(obs_train_tensor)}')
 
 # Evaluate the model
 model.eval()
