@@ -6,6 +6,7 @@ import time as t
 from time import time
 from controller import Robot
 from controller import Supervisor
+from controller import Node
 from controller import Keyboard
 import numpy as np
 from math import *
@@ -16,7 +17,8 @@ from torch.utils.data import Dataset, DataLoader
 #Define a table of fruit velocities to apply (x,y,z)
 launchTable = [[0,0,8]]
 maxFruit = 1
-maxRobotReach = 1
+maxRobotReach = 0.75
+minRobotReach = 0.5
 
 ORIGIN = np.array([0,0,0.6])
 gravity = 9.81
@@ -26,7 +28,7 @@ def genFruitPos():
     translation_field = fruitNode.getField('translation')
 
     angle = random.uniform(0, 2 * pi)
-    height = random.uniform(1, 3)
+    height = 1
     radius = 4
     x = radius * cos(angle)
     y = radius * sin(angle)
@@ -41,27 +43,41 @@ def genFruitPos():
 def launchFruit():
     tof = random.uniform(1,2)
     fruitNode = supervisor.getFromDef('fruit0')
-    targetX, targetY, targetZ = random.uniform(-maxRobotReach, maxRobotReach), random.uniform(-maxRobotReach, maxRobotReach), random.uniform(0.25, 1.25)
+    if random.choice([True, False]):
+        targetX = random.uniform(-maxRobotReach, -minRobotReach)
+    else:
+        targetX = random.uniform(minRobotReach, maxRobotReach)
+
+    if random.choice([True, False]):
+        targetY = random.uniform(-maxRobotReach, -minRobotReach)
+    else:
+        targetY = random.uniform(minRobotReach, maxRobotReach)
+
+    targetZ = random.uniform(0.25, 1.25)
     translation_field = fruitNode.getField('translation')
     x, y, z = translation_field.getSFVec3f()
     velx = (targetX - x) / tof
     vely = (targetY - y) / tof
-    velz = (targetZ - z + (1 / 2 * gravity * tof**2)) / tof
+    velz = (targetZ - z + (1 / 2) * gravity * tof**2) / tof
     fruitNode.setVelocity([velx, vely, velz, 0, 0, 0])
     fruitNode = None
     return ([velx, vely, velz], [targetX, targetY, targetZ])
 
-def isTouched(caught):
+def isTouched(caught, robotPos):
     prevCaught = np.copy(caught)
     for fruitIndex in range(maxFruit):
         fruitNode = supervisor.getFromDef('fruit' + str(fruitIndex))
         trans_field = fruitNode.getField("translation")
-        robotPos = [x_ee, y_ee, z_ee]
+        # robotPos = [x_ee, y_ee, z_ee]
         diff = np.zeros(3)
         for i in range(3):
-            diff[i] = trans_field.getSFVec3f()[i] - robotPos[i]
-        if np.linalg.norm(diff) < 1.25:
+            diff[i] = abs(trans_field.getSFVec3f()[i] - robotPos[i])
+        if np.linalg.norm(diff) < 0.1:
             caught[fruitIndex] = 1
+            #print("Caught!")
+            return True
+        else:
+            return False
     if(not np.array_equal(prevCaught, caught)):
         print(caught)
 
@@ -216,6 +232,8 @@ target = supervisor.getFromDef('TARGET')
 translation_field = target.getField('translation')
 rotation_field = target.getField('rotation')
 
+target = super
+
 
 
 
@@ -262,6 +280,11 @@ caught = np.zeros(4)
 keyboard = Keyboard()
 keyboard.enable(1) #sampling period (msec)
 
+# Initialize data collection variables
+observations = []
+actions = []
+outcomes = []
+
 fruitDelay = 700 #time in between fruit launches
 nextLaunch = fruitDelay #when is the next launch scheduled?
 currentTime = 0
@@ -281,6 +304,8 @@ print(base_time)
 t.sleep(2)
 
 numRuns = 0
+
+ball_caught = False
 
 while supervisor.step(timestep) != -1:
     # Read the sensors:
@@ -319,6 +344,13 @@ while supervisor.step(timestep) != -1:
         # translation_field.setSFVec3f(pose4)
         fruitLaunched = False
         numRuns += 1
+        if ball_caught:
+            print("caught!")
+        outcomes.append(ball_caught)
+        actions.append(goal)
+        ball_initial_info = [ballX, ballY, ballZ, vels[0], vels[1], vels[2]]
+        observations.append(ball_initial_info)
+        ball_caught = False
 
 
                 
@@ -329,6 +361,7 @@ while supervisor.step(timestep) != -1:
     #print('Motion angle:' + str(motorDevices[motionAxis].getPositionSensor().getValue() % (2*math.pi)))
     #print(endPos)
     #print(endOrient)
+        
  
    
     key = keyboard.getKey()
@@ -341,6 +374,7 @@ while supervisor.step(timestep) != -1:
         motorDevices[1].setVelocity(motorDevices[1].getVelocity() + 0.1)
     elif key == Keyboard.DOWN:
         motorDevices[1].setVelocity(motorDevices[1].getVelocity() - 0.1) 
+
     #print('Key: %d' % key)
     
     if key == ord('L'): #webots capitalizes all keys apparently
@@ -356,7 +390,7 @@ while supervisor.step(timestep) != -1:
     motor_ang = []
     for motor in motorDevices:
         motor_ang.append(motor.getPositionSensor().getValue())
-
+    
     jacobian = create_jacobian(motor_ang)
     H = generate_final_transform(motor_ang)
     x_ee,y_ee,z_ee = H[0,3], H[1, 3], H[2, 3]
@@ -369,8 +403,6 @@ while supervisor.step(timestep) != -1:
     goal.extend(rotation_field.getSFRotation())
     
     error = calculate_error(current, goal)
-
-    isTouched(caught)
 
     joint_vel = calculate_joint_vel(error, jacobian)
     i = 0
@@ -386,16 +418,33 @@ while supervisor.step(timestep) != -1:
 
         i += 1
     
-    """if (numRuns == 10):
-        # Convert the data lists to numpy arrays for easier manipulation
-        joint_velocities_data = np.array(joint_velocities_data)
-        initial_ball_position = np.array([ballX, ballY, ballZ])
-        initial_ball_velocity = np.array(vels)
+    """if not observations:  # Collect initial ball location and velocity
+        ball_initial_info = [ballX, ballY, ballZ, vels[0], vels[1], vels[2]]
+        observations.append(ball_initial_info)"""
+    
+    robot_pos = [-x_ee, -y_ee, z_ee + 0.6]
 
-        # Save the data to a file or use it for further processing
-        np.savez("simulation_data.npz", joint_velocities=joint_velocities_data, 
-        initial_ball_position=initial_ball_position, 
-        initial_ball_velocity=initial_ball_velocity)"""
+    # print(robot_pos)
+
+    if isTouched(caught, robot_pos):
+        ball_caught = True
+
+    # Collect actions (joint angles as a function of time)
+    """joint_angles = []
+    for motor in motorDevices:
+        joint_angles.append(motor.getPositionSensor().getValue())
+    actions.append(joint_angles)"""
+
+    # actions.append(goal)
+
+    """if key == Keyboard.RIGHT:
+        # Save collected data and terminate data collection
+        np.savez("data.npz", observations=observations, actions=actions, outcomes=outcomes)
+        break"""
+    
+    if (numRuns == 10):
+        np.savez("data.npz", observations=observations, actions=actions, outcomes=outcomes)
+        break
 
 # Enter here exit cleanup code.
 for i in range(len(motorDevices)):
