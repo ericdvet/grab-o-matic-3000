@@ -29,27 +29,6 @@ Floor {
   appearance ThreadMetalPlate {
   }
 }
-Wall {
-  translation -2 0 0
-  size 0.2 5 0.2
-}
-Wall {
-  translation 2 0 0
-  name "wall(1)"
-  size 0.2 5 0.2
-}
-Wall {
-  translation 0 2 0
-  rotation 0 0 1 1.57
-  name "wall(2)"
-  size 0.2 5 0.2
-}
-Wall {
-  translation 0 -2 0
-  rotation 0 0 1 1.57
-  name "wall(3)"
-  size 0.2 5 0.2
-}
 WoodenBox {
   size 0.2 0.2 0.6
 }
@@ -57,6 +36,9 @@ UR10e {
   translation 0 0 0.6
   controller "reinforcement_learning"
   supervisor TRUE
+  children [
+    
+  ]
   toolSlot [
     DEF end_effector Pen {
       translation 0 0.05 0
@@ -99,6 +81,14 @@ UR10e {
     }
   ]
 }
+DEF LIDAR Lidar {
+      translation 0 0 2
+      rotation 0 1 0 0.15
+      fieldOfView 1.8
+      verticalFieldOfView 0.1
+      numberOfLayers 3
+      maxRange 5
+    }
 TexturedBackground {
   texture "mars"
 }
@@ -107,7 +97,7 @@ DEF ball Ball {
   rotation 0 1 0 0
   name "ball"
   color 1.0 0.54 0.08
-  mass 0.055
+  mass 0.055  
   contactMaterial "default"
   linearDamping 0.0
   angularDamping 0.0

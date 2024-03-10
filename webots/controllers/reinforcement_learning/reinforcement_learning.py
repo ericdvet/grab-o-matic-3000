@@ -5,14 +5,13 @@ from controller import Robot
 from controller import Supervisor
 from controller import Node
 from controller import Keyboard
+from controller import Lidar
 import numpy as np
 from math import *
 from scipy.spatial.transform import Rotation as R
 import random
 import torch
-from torch.utils.data import Dataset, DataLoader
 import torch.nn as nn
-from sklearn.preprocessing import StandardScaler
 import joblib
 
 # Important controller variables
@@ -318,6 +317,8 @@ if not LEARNING:
     scaler = joblib.load('scaler.pkl')
 
 while supervisor.step(timestep) != -1:
+    
+    supervisor.getDevice("LIDAR")
     
     # Shoot ball towards robot arm at regular intervals
     if not ballLaunched:
