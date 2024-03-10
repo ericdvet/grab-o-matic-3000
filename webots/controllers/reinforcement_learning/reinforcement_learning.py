@@ -11,10 +11,13 @@ import numpy as np
 from math import *
 from scipy.spatial.transform import Rotation as R
 import random
+import torch
+from torch.utils.data import Dataset, DataLoader
 #Define a table of fruit velocities to apply (x,y,z)
 launchTable = [[0,0,8]]
 maxFruit = 1
 maxRobotReach = 1
+
 ORIGIN = np.array([0,0,0.6])
 gravity = 9.81
 ### WRITE FUNCTION TO SET FRUIT POSITION GIVEN ANGLE AND RADIUS FROM BASE OF THE ROBOT - SET TO GIVEN HEIGHT
@@ -189,6 +192,20 @@ def calculate_joint_vel(error, jacobian):
 def calculate_trajectory(x_init, y_init, z_init, x_vel, y_vel, z_vel, time_count):
     return [x_init+(x_vel*time_count) , y_init+(y_vel*time_count),  z_init+(z_vel*time_count) - ((gravity/2) * (time_count**2))]
 
+# tensor flow stuff
+class BallCatchingDataset(Dataset):
+    def __init__(self, data):
+        self.data = data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx]
+    
+# also tensor flow stuff
+joint_velocities_data = []
+
 supervisor = Supervisor()
 # get the time step of the current world.
 timestep = int(supervisor.getBasicTimeStep())
@@ -263,6 +280,8 @@ print(base_time)
 # rotation_field.setSFRotation([0, 1 ,0 ,pi/2])
 t.sleep(2)
 
+numRuns = 0
+
 while supervisor.step(timestep) != -1:
     # Read the sensors:
     # Enter here functions to read sensor data, like:
@@ -299,6 +318,7 @@ while supervisor.step(timestep) != -1:
         # pose4 = [-0.18699999999999994, 0.645, 1.169352]
         # translation_field.setSFVec3f(pose4)
         fruitLaunched = False
+        numRuns += 1
 
 
                 
@@ -354,6 +374,7 @@ while supervisor.step(timestep) != -1:
 
     joint_vel = calculate_joint_vel(error, jacobian)
     i = 0
+    """np.concatenate(joint_velocities_data, joint_vel)"""
     for motor in motorDevices:
         # print(joint_vel.item(i))
         if abs(joint_vel.item(i)) > motor.getMaxVelocity():
@@ -364,6 +385,17 @@ while supervisor.step(timestep) != -1:
 
 
         i += 1
+    
+    """if (numRuns == 10):
+        # Convert the data lists to numpy arrays for easier manipulation
+        joint_velocities_data = np.array(joint_velocities_data)
+        initial_ball_position = np.array([ballX, ballY, ballZ])
+        initial_ball_velocity = np.array(vels)
+
+        # Save the data to a file or use it for further processing
+        np.savez("simulation_data.npz", joint_velocities=joint_velocities_data, 
+        initial_ball_position=initial_ball_position, 
+        initial_ball_velocity=initial_ball_velocity)"""
 
 # Enter here exit cleanup code.
 for i in range(len(motorDevices)):

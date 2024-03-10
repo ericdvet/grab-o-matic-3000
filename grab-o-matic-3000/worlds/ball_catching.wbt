@@ -1,10 +1,19 @@
-#VRML_SIM R2022a utf8
+#VRML_SIM R2023b utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/balls/protos/Ball.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/BrushedAluminium.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/floors/protos/Floor.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/ThreadMetalPlate.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/robots/universal_robots/protos/UR10e.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/apartment_structure/protos/Wall.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/factory/containers/protos/WoodenBox.proto"
+
 WorldInfo {
   info [
     "Universal Robot UR3e, UR5e and UR10e grasping cans using Robotiq 3F grippers."
   ]
   title "Universal Robot"
-  gravity 9.81
   basicTimeStep 8
   physicsDisableAngularThreshold 0.1
   contactProperties [
@@ -21,7 +30,7 @@ WorldInfo {
 }
 Viewpoint {
   orientation -0.2794709224360323 -0.041187160908317706 0.9592703588087489 3.466354426111385
-  position 5.236502799412754 2.3263218413284434 4.176642353980142
+  position 14.217300802211849 5.528376036772574 10.219193348523131
   exposure 1.7
 }
 Floor {
@@ -54,15 +63,26 @@ WoodenBox {
   size 0.2 0.2 0.6
 }
 UR10e {
+  hidden position_0_0 4.88402114990752e-05
+  hidden rotation_1 0 0 1 4.88402146908923e-05
+  hidden position_1_0 0.0001177572194679403
+  hidden rotation_2 0 1 0 1.5709137572194678
+  hidden position_2_0 2.6297534668544074e-05
+  hidden rotation_3 0 1 0 2.6297539553810595e-05
+  hidden position_3_0 2.4046380000663807e-06
+  hidden rotation_4 0 1 0 1.570798404638
+  hidden position_4_0 -5.609487615926843e-08
+  hidden rotation_5 0 0 -1 5.960464477539063e-08
+  hidden position_5_0 -2.2123803404106423e-12
   translation 0 0 0.6
-  controller "reinforcement_learning"
+  controller "ball_catching"
   supervisor TRUE
   toolSlot [
     DEF end_effector Pen {
       translation 0 0.05 0
       rotation 0 0.7071067811862364 -0.7071067811862364 3.14159
       children [
-        Transform {
+        Pose {
           translation 0 0 0.05
           children [
             Shape {
@@ -77,7 +97,7 @@ UR10e {
             }
           ]
         }
-        Transform {
+        Pose {
           translation 0 0 0.04
           children [
             Shape {
@@ -103,16 +123,10 @@ TexturedBackground {
   texture "mars"
 }
 DEF fruit0 Ball {
-  translation 0 0 0
-  rotation 0 1 0 0
-  name "ball"
-  color 1.0 0.54 0.08
-  mass 0.055
-  contactMaterial "default"
-  linearDamping 0.0
-  angularDamping 0.0
+  translation 0 0 -1.0790999999603235e-05
+  linearDamping 0
+  angularDamping 0
 }
-
 DEF TARGET Solid {
   translation 0 0 2.16
   children [
