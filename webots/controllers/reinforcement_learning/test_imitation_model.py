@@ -3,8 +3,9 @@ import torch
 import random
 from math import *
 import torch.nn as nn
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
+import joblib
 
 maxRobotReach = 0.75
 minRobotReach = 0.5
@@ -70,7 +71,7 @@ model.eval()
 
 # Assuming you have new observations stored in a variable named 'new_observations'
 # Preprocess the new observations if necessary (e.g., scale them using the same scaler used during training)
-scaler = StandardScaler()
+scaler = joblib.load('scaler.pkl')
 new_observations_scaled = scaler.fit_transform(new_observations)
 
 # Convert the preprocessed observations to a PyTorch tensor

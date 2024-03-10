@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
+import joblib
+
 
 # Load data
 data_obs = np.load('observations.npz')
@@ -17,6 +19,7 @@ outcomes = data_out['arr_0']
 # Preprocess data
 scaler = StandardScaler()
 observations_scaled = scaler.fit_transform(observations)
+joblib.dump(scaler, 'scaler.pkl') # saving for later
 
 label_encoder = LabelEncoder()
 outcomes_encoded = label_encoder.fit_transform(outcomes)
@@ -25,6 +28,7 @@ outcomes_encoded = label_encoder.fit_transform(outcomes)
 obs_train, obs_test, act_train, act_test, out_train, out_test = train_test_split(
     observations_scaled, actions, outcomes_encoded, test_size=0.2, random_state=42
 )
+
 
 # Convert data to PyTorch tensors
 obs_train_tensor = torch.tensor(obs_train, dtype=torch.float32)

@@ -14,11 +14,16 @@ from scipy.spatial.transform import Rotation as R
 import random
 import torch
 from torch.utils.data import Dataset, DataLoader
+import torch.nn as nn
+from sklearn.preprocessing import StandardScaler
+import joblib
+
 #Define a table of fruit velocities to apply (x,y,z)
 launchTable = [[0,0,8]]
 maxFruit = 1
 maxRobotReach = 0.75
 minRobotReach = 0.5
+LEARNING = True
 
 ORIGIN = np.array([0,0,0.6])
 gravity = 9.81
@@ -273,11 +278,33 @@ numRuns = 0
 
 ball_caught = False
 
+if not LEARNING:
+    # Define the same ImitationModel class as before
+    class ImitationModel(nn.Module):
+        def __init__(self, input_size, output_size):
+            super(ImitationModel, self).__init__()
+            self.fc1 = nn.Linear(input_size, 64)
+            self.fc2 = nn.Linear(64, 32)
+            self.fc3 = nn.Linear(32, output_size)
+
+        def forward(self, x):
+            x = torch.relu(self.fc1(x))
+            x = torch.relu(self.fc2(x))
+            x = self.fc3(x)
+            return x
+    
+    # Load the trained model
+    model = ImitationModel(input_size=6, output_size=7)
+    model.load_state_dict(torch.load('imitation_model.pth'))
+    model.eval()
+    scaler = joblib.load('scaler.pkl')
+
 while supervisor.step(timestep) != -1:
     if not fruitLaunched:
         ballX, ballY, ballZ = genFruitPos()
         vels, targetPos = launchFruit()
-        print('Launch all fruit!')
+        ball_initial_info = [ballX, ballY, ballZ, vels[0], vels[1], vels[2]]
+        print('Balls incoming!')
         fruitLaunched = True
         lastLaunch = currentTime
 
@@ -291,7 +318,6 @@ while supervisor.step(timestep) != -1:
             print("caught!")
         outcomes.append(ball_caught)
         actions.append(goal)
-        ball_initial_info = [ballX, ballY, ballZ, vels[0], vels[1], vels[2]]
         observations.append(ball_initial_info)
         ball_caught = False
    
@@ -331,7 +357,25 @@ while supervisor.step(timestep) != -1:
     goal[1] *= -1
     goal.extend(rotation_field.getSFRotation())
     
-    error = calculate_error(current, goal)
+    if LEARNING:
+        error = calculate_error(current, goal)
+    else:
+        new_observations = np.array(ball_initial_info)
+        
+        single_observation_scaled = scaler.transform(new_observations.reshape(1,-1))
+        # single_observation_scaled = new_observations
+        
+
+        # Convert the preprocessed observations to a PyTorch tensor
+        new_observation_tensor = torch.tensor(single_observation_scaled, dtype=torch.float32)
+        print(single_observation_scaled)
+        # Use the trained model to predict actions based on the new observations
+        with torch.no_grad():
+            predicted_goal = model(new_observation_tensor)
+        
+        predicted_goal = predicted_goal.tolist()
+        #print(predicted_goal)
+        error = calculate_error(current, predicted_goal[0])
 
     joint_vel = calculate_joint_vel(error, jacobian)
     i = 0
@@ -351,8 +395,7 @@ while supervisor.step(timestep) != -1:
     if isTouched(caught, robot_pos):
         ball_caught = True
     
-    if (numRuns == 100):
-        #np.savez("data.npz", observations=observations, actions=actions, outcomes=outcomes)
+    if (numRuns == 1000):
         np.savez("observations.npz", observations)
         np.savez("actions.npz", actions)
         np.savez("outcomes.npz", outcomes)
