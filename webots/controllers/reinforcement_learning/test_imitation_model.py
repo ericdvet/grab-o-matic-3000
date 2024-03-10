@@ -84,7 +84,8 @@ with torch.no_grad():
 
 for i in range(1, 100):
     temp = abs(predicted_actions[i] - new_correct_actions[i])
-    print(np.linalg.norm(temp[0:3]))
+    #print(np.linalg.norm(temp[0:7]))
+    print(predicted_actions[i][2], " v. ", new_correct_actions[i][2])
 
 # The predicted_actions variable now contains the predicted actions corresponding to the new observations
 

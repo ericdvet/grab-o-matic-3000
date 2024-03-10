@@ -1,7 +1,4 @@
 """move_joint controller."""
-
-# You may need to import some classes of the controller module. Ex:
-#  from controller import Robot, Motor, DistanceSensor
 import time as t
 from time import time
 from controller import Robot
@@ -18,12 +15,12 @@ import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
 import joblib
 
-#Define a table of fruit velocities to apply (x,y,z)
+
 launchTable = [[0,0,8]]
 maxFruit = 1
 maxRobotReach = 0.75
 minRobotReach = 0.5
-LEARNING = True
+LEARNING = False
 
 ORIGIN = np.array([0,0,0.6])
 gravity = 9.81
@@ -271,6 +268,7 @@ fruitLaunched = False
 x_init, y_init, z_init, x_vel, y_vel, z_vel = range(6)
 fruit0_traj = [-0.5, 0.5, 0.05, launchTable[0][0], launchTable[0][1], launchTable[0][2]]
 
+
 base_time = supervisor.getTime()
 print(base_time)
 
@@ -360,21 +358,15 @@ while supervisor.step(timestep) != -1:
     if LEARNING:
         error = calculate_error(current, goal)
     else:
+        # Preprocess observations for model
         new_observations = np.array(ball_initial_info)
-        
         single_observation_scaled = scaler.transform(new_observations.reshape(1,-1))
-        # single_observation_scaled = new_observations
-        
-
-        # Convert the preprocessed observations to a PyTorch tensor
         new_observation_tensor = torch.tensor(single_observation_scaled, dtype=torch.float32)
-        print(single_observation_scaled)
+        
         # Use the trained model to predict actions based on the new observations
         with torch.no_grad():
             predicted_goal = model(new_observation_tensor)
-        
         predicted_goal = predicted_goal.tolist()
-        #print(predicted_goal)
         error = calculate_error(current, predicted_goal[0])
 
     joint_vel = calculate_joint_vel(error, jacobian)
@@ -386,8 +378,6 @@ while supervisor.step(timestep) != -1:
             motor.setVelocity(vel)
         else:
             motor.setVelocity(joint_vel.item(i))
-
-
         i += 1
     
     robot_pos = [-x_ee, -y_ee, z_ee + 0.6]
@@ -395,11 +385,12 @@ while supervisor.step(timestep) != -1:
     if isTouched(caught, robot_pos):
         ball_caught = True
     
-    if (numRuns == 1000):
-        np.savez("observations.npz", observations)
-        np.savez("actions.npz", actions)
-        np.savez("outcomes.npz", outcomes)
-        break
+    if LEARNING:
+        if (numRuns == 1000):
+            np.savez("observations.npz", observations)
+            np.savez("actions.npz", actions)
+            np.savez("outcomes.npz", outcomes)
+            break
 
 # Enter here exit cleanup code.
 for i in range(len(motorDevices)):
