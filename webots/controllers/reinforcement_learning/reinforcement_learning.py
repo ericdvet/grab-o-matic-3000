@@ -15,7 +15,7 @@ import torch.nn as nn
 import joblib
 
 # Important controller variables
-LEARNING = True
+LEARNING = False
 gravity = 9.81
 
 # Creates static variables for function
@@ -45,6 +45,7 @@ def genBallPos():
     startingPosition = [x, y, height]
     translation_field.setSFVec3f(startingPosition)
     rotation_field.setSFRotation([0, 0, 1, 0])
+    ballNode = None
     return startingPosition
 
 # Function to launch a ball from a random position towards a random target point within the robot's reachable area
@@ -163,7 +164,7 @@ def generate_final_transform(theta_vals):
     H_1_5 = H_1_4 @ H_5
     H_1_6 = H_1_5 @ H_6
 
-    return H_1_6    
+    return H_1_6
 
 # Function to create the Jacobian matrix for a robotic arm
 # Parameters:
@@ -242,14 +243,15 @@ def euler_from_Htrans(H):
 #       jacobian (numpy.array): The Jacobian matrix
 # Returns:
 #       numpy.array: Joint velocities
-def calculate_joint_vel(error, jacobian):
-    kPt = 200
-    kPa = 7.5
-    # kPt = 3
-    # kPa = 1
+def calculate_joint_vel(error, jacobian, kPt=-1, kPa=-1):
+    # kPt = 200
+    # kPa = 7.5
+    if(kPt == -1 and kPa == -1):
+        kPt = random.uniform(10, 500)
+        kPa = random.uniform(1,100)
     scaled_error = np.concatenate((error[:3] * kPt, error[3:] * kPa), axis=0)
     # return np.linalg.inv(jacobian) @ scaled_error
-    return scaled_error @ jacobian
+    return (scaled_error @ jacobian, [kPt, kPa])
 
 # ============================== Main ============================== 
 
@@ -296,6 +298,15 @@ outcomes = []
 
 # Initialize misc. simulation variables
 currentTime = 0
+ballLaunched = True
+base_time = supervisor.getTime()
+targetPos = [0, 0, 0]
+numRuns = 0
+ball_caught = False
+lastLaunch = 0
+
+# Initialize misc. simulation variables
+currentTime = 0
 ballLaunched = False
 base_time = supervisor.getTime()
 numRuns = 0
@@ -316,7 +327,7 @@ if not LEARNING:
             return x
     
     # Load the trained model
-    model = ImitationModel(input_size=6, output_size=7)
+    model = ImitationModel(input_size=6, output_size=9)
     model.load_state_dict(torch.load('imitation_model.pth'))
     model.eval()
     
@@ -337,15 +348,20 @@ while supervisor.step(timestep) != -1:
     if (currentTime - lastLaunch) < 3.5:
         translation_field.setSFVec3f(targetPos)
     else:
-        ballLaunched = False
-        numRuns += 1
-        if ball_caught:
-            print(" Success", end = '')
-            if LEARNING:
-                outcomes.append(ball_caught)
-                actions.append(goal)
-                observations.append(ball_initial_info)
-        ball_caught = False
+        # Drop the ball for 0.1 seconds before resetting
+        if (currentTime - lastLaunch) < 3.6:  # Adjust the timing here
+            ballX, ballY, ballZ = genBallPos()
+            vels, targetPos = launchBall()
+        else:
+            ballLaunched = False
+            numRuns += 1
+            if ball_caught:
+                print(" Success", end = '')
+                if LEARNING:
+                    outcomes.append(ball_caught)
+                    actions.append(goal)
+                    observations.append(ball_initial_info)
+            ball_caught = False
             
     currentTime = supervisor.getTime()
     
@@ -367,6 +383,9 @@ while supervisor.step(timestep) != -1:
         goal[1] *= -1
         goal.extend(rotation_field.getSFRotation())
         error = calculate_error(current, goal)
+        joint_vel, Kps = calculate_joint_vel(error, jacobian)
+
+        
     else:
         # Preprocess observations for model
         new_observations = np.array(ball_initial_info)
@@ -377,10 +396,10 @@ while supervisor.step(timestep) != -1:
         with torch.no_grad():
             predicted_goal = model(new_observation_tensor)
         predicted_goal = predicted_goal.tolist()
-        error = calculate_error(current, predicted_goal[0])
+        error = calculate_error(current, predicted_goal[0][:7])
+        joint_vel, Kps = calculate_joint_vel(error, jacobian, kPt=predicted_goal[0][7], kPa=predicted_goal[0][8])
 
     # Use inverse kinematics to catch ball
-    joint_vel = calculate_joint_vel(error, jacobian)
     i = 0
     for motor in motorDevices:
         # print(joint_vel.item(i))
