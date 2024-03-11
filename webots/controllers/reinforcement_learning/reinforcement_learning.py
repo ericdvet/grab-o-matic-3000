@@ -15,25 +15,36 @@ import torch.nn as nn
 import joblib
 
 # Important controller variables
-LEARNING = False
+LEARNING = True
 gravity = 9.81
+
+# Creates static variables for function
+def static_vars(**kwargs):
+    def decorate(func):
+        for k in kwargs:
+            setattr(func, k, kwargs[k])
+        return func
+    return decorate
 
 # Generate the position of the ball in the Webots simulation environment.
 # Paramters: None
 # Returns:
 #       list: A list containing the x, y, and z coordinates of the ball position.
+@static_vars(prevAng=0)
 def genBallPos():
     ballNode = supervisor.getFromDef('ball')
     translation_field = ballNode.getField('translation')
-
-    angle = random.uniform(0, 2 * pi)
-    height = 1
+    rotation_field = ballNode.getField('rotation')
+    angle = random.uniform(genBallPos.prevAng - pi / 3, genBallPos.prevAng + pi/3)
+    genBallPos.prevAng = angle
+    height = random.uniform(1, 3)
     radius = 4
     x = radius * cos(angle)
     y = radius * sin(angle)
     
     startingPosition = [x, y, height]
     translation_field.setSFVec3f(startingPosition)
+    rotation_field.setSFRotation([0, 0, 1, 0])
     return startingPosition
 
 # Function to launch a ball from a random position towards a random target point within the robot's reachable area
@@ -46,22 +57,18 @@ def launchBall():
     ballNode = supervisor.getFromDef('ball')
     maxRobotReach = 0.75
     minRobotReach = 0.5
-    if random.choice([True, False]):
-        targetX = random.uniform(-maxRobotReach, -minRobotReach)
-    else:
-        targetX = random.uniform(minRobotReach, maxRobotReach)
-
-    if random.choice([True, False]):
-        targetY = random.uniform(-maxRobotReach, -minRobotReach)
-    else:
-        targetY = random.uniform(minRobotReach, maxRobotReach)
-
-    targetZ = random.uniform(0.25, 1.25)
+    # targetX, targetY, targetZ = random.uniform(-maxRobotReach, maxRobotReach), random.uniform(-maxRobotReach, maxRobotReach), random.uniform(0.25, 1.25)
     translation_field = ballNode.getField('translation')
     x, y, z = translation_field.getSFVec3f()
+    angle = atan2(y,x)
+    angle = random.uniform(angle - pi / 2, angle + pi / 2)
+    radius = random.uniform(minRobotReach, maxRobotReach)
+    targetX = radius * cos(angle)
+    targetY = radius * sin(angle)
+    targetZ = random.uniform(0.25, 1.25)
     velx = (targetX - x) / tof
     vely = (targetY - y) / tof
-    velz = (targetZ - z + (1 / 2) * gravity * tof**2) / tof
+    velz = (targetZ - z + (1 / 2 * gravity * tof**2)) / tof
     ballNode.setVelocity([velx, vely, velz, 0, 0, 0])
     ballNode = None
     return ([velx, vely, velz], [targetX, targetY, targetZ])
@@ -334,10 +341,10 @@ while supervisor.step(timestep) != -1:
         numRuns += 1
         if ball_caught:
             print(" Success", end = '')
-        if LEARNING:
-            outcomes.append(ball_caught)
-            actions.append(goal)
-            observations.append(ball_initial_info)
+            if LEARNING:
+                outcomes.append(ball_caught)
+                actions.append(goal)
+                observations.append(ball_initial_info)
         ball_caught = False
             
     currentTime = supervisor.getTime()
