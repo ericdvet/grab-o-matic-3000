@@ -9,30 +9,48 @@ import joblib
 
 numberOfTests = 100
 gravity = 9.81
+# Creates static variables for function
+def static_vars(**kwargs):
+    def decorate(func):
+        for k in kwargs:
+            setattr(func, k, kwargs[k])
+        return func
+    return decorate
 
+# Creates the target for where the ball will go
+@static_vars(prevAng=0)
 def generateTrainingData():
     maxRobotReach = 0.75
     minRobotReach = 0.5
 
-    tof = random.uniform(1,2)
-    if random.choice([True, False]):
-        targetX = random.uniform(-maxRobotReach, -minRobotReach)
-    else:
-        targetX = random.uniform(minRobotReach, maxRobotReach)
-
-    if random.choice([True, False]):
-        targetY = random.uniform(-maxRobotReach, -minRobotReach)
-    else:
-        targetY = random.uniform(minRobotReach, maxRobotReach)
-
-    targetZ = random.uniform(0.25, 1.25)
-    
-    angle = random.uniform(0, 2 * pi)
+    # Get the starting position of the ball using polar coords
+    angle = random.uniform(generateTrainingData.prevAng - pi / 3, generateTrainingData.prevAng + pi/3)
     height = 1
     radius = 4
     x = radius * cos(angle)
     y = radius * sin(angle)
     z = height
+
+    tof = random.uniform(1,2)
+
+    target_angle = random.uniform(angle - pi / 3, angle + pi / 3)
+    radius = random.uniform(maxRobotReach / 2, maxRobotReach)
+    targetX = radius * cos(target_angle)
+    targetY = radius * sin(target_angle)
+    targetZ = random.uniform(0.25, 1.25)
+
+    # if random.choice([True, False]):
+    #     targetX = random.uniform(-maxRobotReach, -minRobotReach)
+    # else:
+    #     targetX = random.uniform(minRobotReach, maxRobotReach)
+
+    # if random.choice([True, False]):
+    #     targetY = random.uniform(-maxRobotReach, -minRobotReach)
+    # else:
+    #     targetY = random.uniform(minRobotReach, maxRobotReach)
+
+    # targetZ = random.uniform(0.25, 1.25)
+
 
     velx = (targetX - x) / tof
     vely = (targetY - y) / tof
