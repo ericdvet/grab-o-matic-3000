@@ -318,8 +318,6 @@ if not LEARNING:
 
 while supervisor.step(timestep) != -1:
     
-    supervisor.getDevice("LIDAR")
-    
     # Shoot ball towards robot arm at regular intervals
     if not ballLaunched:
         ballX, ballY, ballZ = genBallPos()
