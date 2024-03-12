@@ -14,9 +14,10 @@ import random
 import torch
 import torch.nn as nn
 import joblib
+from model import ImitationModel
 
 # Important controller variables
-LEARNING = True
+LEARNING = False
 gravity = 9.81
 
 # Creates static variables for function
@@ -305,19 +306,6 @@ lastLaunch = 0
 cam_info = []
 
 if not LEARNING:
-    class ImitationModel(nn.Module):
-        def __init__(self, input_size, output_size):
-            super(ImitationModel, self).__init__()
-            self.fc1 = nn.Linear(input_size, 64)
-            self.fc2 = nn.Linear(64, 32)
-            self.fc3 = nn.Linear(32, output_size)
-
-        def forward(self, x):
-            x = torch.relu(self.fc1(x))
-            x = torch.relu(self.fc2(x))
-            x = self.fc3(x)
-            return x
-    
     # Load the trained model
     model = ImitationModel(input_size=12, output_size=7)
     model.load_state_dict(torch.load('imitation_model.pth'))
