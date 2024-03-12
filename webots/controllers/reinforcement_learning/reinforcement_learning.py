@@ -16,7 +16,7 @@ import torch.nn as nn
 import joblib
 
 # Important controller variables
-LEARNING = False
+LEARNING = True
 gravity = 9.81
 
 # Creates static variables for function
@@ -36,7 +36,7 @@ def genBallPos():
     ballNode = supervisor.getFromDef('ball')
     translation_field = ballNode.getField('translation')
     rotation_field = ballNode.getField('rotation')
-    angle = random.uniform(genBallPos.prevAng - pi / 3, genBallPos.prevAng + pi/3)
+    angle = random.uniform(genBallPos.prevAng - pi / 6, genBallPos.prevAng + pi / 6)
     genBallPos.prevAng = angle
     height = random.uniform(1, 3)
     radius = 4
@@ -57,8 +57,8 @@ def genBallPos():
 def launchBall():
     tof = random.uniform(1,2)
     ballNode = supervisor.getFromDef('ball')
-    maxRobotReach = 0.75
-    minRobotReach = 0.5
+    maxRobotReach = 0.8
+    minRobotReach = 0.6
     # targetX, targetY, targetZ = random.uniform(-maxRobotReach, maxRobotReach), random.uniform(-maxRobotReach, maxRobotReach), random.uniform(0.25, 1.25)
     translation_field = ballNode.getField('translation')
     x, y, z = translation_field.getSFVec3f()
@@ -336,7 +336,10 @@ c2 = supervisor.getDevice("camera2")
 c2.enable(camTimestep)
 c2.recognitionEnable(camTimestep)
 
-time_intervals = [0.1, 0.3, 0.5]
+time_intervals = [0.1, 0.2, 0.3, 0.4]
+cam_info = []
+for i in time_intervals:
+    cam_info.extend([0, 0, 0, 0])
 
 while supervisor.step(timestep) != -1:
     
@@ -350,21 +353,27 @@ while supervisor.step(timestep) != -1:
         ballLaunched = True
         lastLaunch = currentTime
         cam_info = []
+        for i in time_intervals:
+            cam_info.extend([0, 0, 0, 0])
 
     if (currentTime - lastLaunch) < 3.5:
         translation_field.setSFVec3f(targetPos)
         balls = c.getRecognitionObjects()
         balls2 = c2.getRecognitionObjects()
-        for interval in time_intervals:
-            if (currentTime - lastLaunch) > interval and (currentTime - lastLaunch) < interval + 0.01:
+        for index, interval in enumerate(time_intervals):
+            if (currentTime - lastLaunch) >= interval and (currentTime - lastLaunch) < interval + 0.01:
                 for ball in balls:
-                    cam_info.extend(ball.getPositionOnImage()[:2])
+                    cam_info[4*index:4*index+2] = ball.getPositionOnImage()[:2]
+                    # cam_info.extend(ball.getPositionOnImage()[:2])
                 for ball in balls2:
-                    cam_info.extend(ball.getPositionOnImage()[:2])
+                    cam_info[4*index+2:4*index+4] = ball.getPositionOnImage()[:2]
+                    # cam_info.extend(ball.getPositionOnImage()[:2])
                 if not balls:
-                    cam_info.extend([-1, -1])
+                    cam_info[4*index:4*index+2] = [-1, -1]
+                    #cam_info.extend([-1, -1])
                 if not balls2:
-                    cam_info.extend([-1, -1])
+                    cam_info[4*index+2:4*index+4] = [-1, -1]
+                    #cam_info.extend([-1, -1])
                 break
     else:
         # Drop the ball for 0.1 seconds before resetting
@@ -397,13 +406,18 @@ while supervisor.step(timestep) != -1:
         
     if LEARNING:
         # Calculate error based upon calculated error
-        goal = translation_field.getSFVec3f()
-        goal[0] *= -1
-        goal[1] *= -1
-        goal.extend(rotation_field.getSFRotation())
-        error = calculate_error(current, goal)
-        joint_vel, Kps = calculate_joint_vel(error, jacobian)
-
+        print(len(cam_info), " ", len(time_intervals)*4)
+        if (cam_info[len(time_intervals)*4-1] != 0):
+            goal = translation_field.getSFVec3f()
+            goal[0] *= -1
+            goal[1] *= -1
+            goal.extend(rotation_field.getSFRotation())
+            error = calculate_error(current, goal)
+            joint_vel, Kps = calculate_joint_vel(error, jacobian)
+        else:
+            goal = [0, 0, 1.25, 0, 0, 1, 0]
+            error = calculate_error(current, goal)
+            joint_vel, Kps = calculate_joint_vel(error, jacobian)
         
     else:
         # Preprocess observations for model
