@@ -16,7 +16,7 @@ import torch.nn as nn
 import joblib
 
 # Important controller variables
-LEARNING = True
+LEARNING = False
 gravity = 9.81
 
 # Creates static variables for function
@@ -245,11 +245,8 @@ def euler_from_Htrans(H):
 # Returns:
 #       numpy.array: Joint velocities
 def calculate_joint_vel(error, jacobian, kPt=-1, kPa=-1):
-    # kPt = 200
-    # kPa = 7.5
-    if(kPt == -1 and kPa == -1):
-        kPt = random.uniform(1, 1000)
-        kPa = random.uniform(1,1000)
+    kPt = 200
+    kPa = 7.5
     scaled_error = np.concatenate((error[:3] * kPt, error[3:] * kPa), axis=0)
     # return np.linalg.inv(jacobian) @ scaled_error
     return (scaled_error @ jacobian, [kPt, kPa])
@@ -305,13 +302,7 @@ targetPos = [0, 0, 0]
 numRuns = 0
 ball_caught = False
 lastLaunch = 0
-
-# Initialize misc. simulation variables
-currentTime = 0
-ballLaunched = False
-base_time = supervisor.getTime()
-numRuns = 0
-ball_caught = False
+cam_info = []
 
 if not LEARNING:
     class ImitationModel(nn.Module):
@@ -328,14 +319,27 @@ if not LEARNING:
             return x
     
     # Load the trained model
-    model = ImitationModel(input_size=6, output_size=9)
+    model = ImitationModel(input_size=12, output_size=7)
     model.load_state_dict(torch.load('imitation_model.pth'))
     model.eval()
     
     # Load scalar (not sure if necessary?)
     scaler = joblib.load('scaler.pkl')
 
+camTimestep = 64
+
+c = supervisor.getDevice("camera")
+c.enable(camTimestep)
+c.recognitionEnable(camTimestep)
+
+c2 = supervisor.getDevice("camera2")
+c2.enable(camTimestep)
+c2.recognitionEnable(camTimestep)
+
+time_intervals = [0.1, 0.3, 0.5]
+
 while supervisor.step(timestep) != -1:
+    
     
     # Shoot ball towards robot arm at regular intervals
     if not ballLaunched:
@@ -345,9 +349,23 @@ while supervisor.step(timestep) != -1:
         print('\nTrial ', numRuns, end = '')
         ballLaunched = True
         lastLaunch = currentTime
+        cam_info = []
 
     if (currentTime - lastLaunch) < 3.5:
         translation_field.setSFVec3f(targetPos)
+        balls = c.getRecognitionObjects()
+        balls2 = c2.getRecognitionObjects()
+        for interval in time_intervals:
+            if (currentTime - lastLaunch) > interval and (currentTime - lastLaunch) < interval + 0.01:
+                for ball in balls:
+                    cam_info.extend(ball.getPositionOnImage()[:2])
+                for ball in balls2:
+                    cam_info.extend(ball.getPositionOnImage()[:2])
+                if not balls:
+                    cam_info.extend([-1, -1])
+                if not balls2:
+                    cam_info.extend([-1, -1])
+                break
     else:
         # Drop the ball for 0.1 seconds before resetting
         if (currentTime - lastLaunch) < 3.6:  # Adjust the timing here
@@ -361,7 +379,7 @@ while supervisor.step(timestep) != -1:
                 if LEARNING:
                     outcomes.append(ball_caught)
                     actions.append(goal)
-                    observations.append(ball_initial_info)
+                    observations.append(np.array(cam_info))
             ball_caught = False
             
     currentTime = supervisor.getTime()
@@ -389,17 +407,21 @@ while supervisor.step(timestep) != -1:
         
     else:
         # Preprocess observations for model
-        new_observations = np.array(ball_initial_info)
-        single_observation_scaled = scaler.transform(new_observations.reshape(1,-1))
-        new_observation_tensor = torch.tensor(single_observation_scaled, dtype=torch.float32)
-        
-        # Use the trained model to predict actions based on the new observations
-        with torch.no_grad():
-            predicted_goal = model(new_observation_tensor)
-        predicted_goal = predicted_goal.tolist()
-        error = calculate_error(current, predicted_goal[0][:7])
-        print(f"kPt = {predicted_goal[0][7]}, kPa = {predicted_goal[0][8]}")
-        joint_vel, Kps = calculate_joint_vel(error, jacobian, kPt=predicted_goal[0][7], kPa=predicted_goal[0][8])
+        if (len(cam_info) == len(time_intervals)*4):
+            new_observations = np.array(cam_info)
+            single_observation_scaled = scaler.transform(new_observations.reshape(1,-1))
+            new_observation_tensor = torch.tensor(single_observation_scaled, dtype=torch.float32)
+            
+            # Use the trained model to predict actions based on the new observations
+            with torch.no_grad():
+                predicted_goal = model(new_observation_tensor)
+            predicted_goal = predicted_goal.tolist()
+            error = calculate_error(current, predicted_goal[0])
+            joint_vel, Kps = calculate_joint_vel(error, jacobian)
+        else:
+            goal = [0, 0, 1.25, 0, 0, 1, 0]
+            error = calculate_error(current, goal)
+            joint_vel, Kps = calculate_joint_vel(error, jacobian)
 
     # Use inverse kinematics to catch ball
     i = 0
@@ -419,7 +441,7 @@ while supervisor.step(timestep) != -1:
     
     # Store observation and action data
     if LEARNING:
-        if (numRuns == 1000):
+        if (numRuns == 1000 + 2):
             np.savez("observations.npz", observations)
             np.savez("actions.npz", actions)
             np.savez("outcomes.npz", outcomes)

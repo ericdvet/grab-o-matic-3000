@@ -1,10 +1,17 @@
-#VRML_SIM R2022a utf8
+#VRML_SIM R2023b utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/BrushedAluminium.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/floors/protos/Floor.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/ThreadMetalPlate.proto"
+EXTERNPROTO "../protos/UR10e.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/factory/containers/protos/WoodenBox.proto"
+
 WorldInfo {
   info [
     "Universal Robot UR3e, UR5e and UR10e grasping cans using Robotiq 3F grippers."
   ]
   title "Universal Robot"
-  gravity 9.81
   basicTimeStep 8
   physicsDisableAngularThreshold 0.1
   contactProperties [
@@ -21,7 +28,7 @@ WorldInfo {
 }
 Viewpoint {
   orientation -0.2794709224360323 -0.041187160908317706 0.9592703588087489 3.466354426111385
-  position 5.236502799412754 2.3263218413284434 4.176642353980142
+  position 11.863562324242837 4.689163511782043 8.63552731166172
   exposure 1.7
 }
 Floor {
@@ -36,15 +43,12 @@ UR10e {
   translation 0 0 0.6
   controller "reinforcement_learning"
   supervisor TRUE
-  children [
-    
-  ]
   toolSlot [
     DEF end_effector Pen {
       translation 0 0.05 0
       rotation 0 0.7071067811862364 -0.7071067811862364 3.14159
       children [
-        Transform {
+        Pose {
           translation 0 0 0.05
           children [
             Shape {
@@ -59,7 +63,7 @@ UR10e {
             }
           ]
         }
-        Transform {
+        Pose {
           translation 0 0 0.04
           children [
             Shape {
@@ -81,30 +85,36 @@ UR10e {
     }
   ]
 }
-DEF LIDAR Lidar {
-      translation 0 0 2
-      rotation 0 1 0 0.15
-      fieldOfView 1.8
-      verticalFieldOfView 0.1
-      numberOfLayers 3
-      maxRange 5
-    }
 TexturedBackground {
   texture "mars"
 }
-DEF ball Ball {
-  translation 0 0 0
-  rotation 0 1 0 0
+DEF ball Solid {
+  translation 0 0 1
+  rotation 0 0 1 0
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 0.54 0.08
+        metalness 0
+      }
+      geometry Sphere {
+        radius 0.05
+        subdivision 2
+      }
+    }
+  ]
   name "ball"
-  color 1.0 0.54 0.08
-  mass 0.055  
-  contactMaterial "default"
-  linearDamping 0.0
-  angularDamping 0.0
+  boundingObject Sphere {
+    radius 0.05
+  }
+  physics Physics {
+  }
+  recognitionColors [
+    1 0.85 0.5
+  ]
 }
-
 DEF TARGET Solid {
-  translation 0 0 2.16
+  translation 0 0 1
   children [
     Shape {
       appearance PBRAppearance {
