@@ -6,6 +6,7 @@ from controller import Supervisor
 from controller import Node
 from controller import Keyboard
 from controller import Lidar
+from controller import Camera
 import numpy as np
 from math import *
 from scipy.spatial.transform import Rotation as R
@@ -15,7 +16,7 @@ import torch.nn as nn
 import joblib
 
 # Important controller variables
-LEARNING = False
+LEARNING = True
 gravity = 9.81
 
 # Creates static variables for function
@@ -247,8 +248,8 @@ def calculate_joint_vel(error, jacobian, kPt=-1, kPa=-1):
     # kPt = 200
     # kPa = 7.5
     if(kPt == -1 and kPa == -1):
-        kPt = random.uniform(10, 500)
-        kPa = random.uniform(1,100)
+        kPt = random.uniform(1, 1000)
+        kPa = random.uniform(1,1000)
     scaled_error = np.concatenate((error[:3] * kPt, error[3:] * kPa), axis=0)
     # return np.linalg.inv(jacobian) @ scaled_error
     return (scaled_error @ jacobian, [kPt, kPa])
@@ -397,6 +398,7 @@ while supervisor.step(timestep) != -1:
             predicted_goal = model(new_observation_tensor)
         predicted_goal = predicted_goal.tolist()
         error = calculate_error(current, predicted_goal[0][:7])
+        print(f"kPt = {predicted_goal[0][7]}, kPa = {predicted_goal[0][8]}")
         joint_vel, Kps = calculate_joint_vel(error, jacobian, kPt=predicted_goal[0][7], kPa=predicted_goal[0][8])
 
     # Use inverse kinematics to catch ball
