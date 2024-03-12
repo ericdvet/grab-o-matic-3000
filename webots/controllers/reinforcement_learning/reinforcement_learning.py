@@ -57,13 +57,13 @@ def genBallPos():
 def launchBall():
     tof = random.uniform(1,2)
     ballNode = supervisor.getFromDef('ball')
-    maxRobotReach = 0.8
+    maxRobotReach = 1
     minRobotReach = 0.6
     # targetX, targetY, targetZ = random.uniform(-maxRobotReach, maxRobotReach), random.uniform(-maxRobotReach, maxRobotReach), random.uniform(0.25, 1.25)
     translation_field = ballNode.getField('translation')
     x, y, z = translation_field.getSFVec3f()
     angle = atan2(y,x)
-    angle = random.uniform(angle - pi / 2, angle + pi / 2)
+    angle = random.uniform(angle - pi / 4, angle + pi / 4)
     radius = random.uniform(minRobotReach, maxRobotReach)
     targetX = radius * cos(angle)
     targetY = radius * sin(angle)
@@ -406,7 +406,7 @@ while supervisor.step(timestep) != -1:
         
     if LEARNING:
         # Calculate error based upon calculated error
-        print(len(cam_info), " ", len(time_intervals)*4)
+        # print(len(cam_info), " ", len(time_intervals)*4)
         if (cam_info[len(time_intervals)*4-1] != 0):
             goal = translation_field.getSFVec3f()
             goal[0] *= -1
@@ -414,14 +414,21 @@ while supervisor.step(timestep) != -1:
             goal.extend(rotation_field.getSFRotation())
             error = calculate_error(current, goal)
             joint_vel, Kps = calculate_joint_vel(error, jacobian)
-        else:
-            goal = [0, 0, 1.25, 0, 0, 1, 0]
-            error = calculate_error(current, goal)
-            joint_vel, Kps = calculate_joint_vel(error, jacobian)
+
+            # Use inverse kinematics to catch ball
+            i = 0
+            for motor in motorDevices:
+                # print(joint_vel.item(i))
+                if abs(joint_vel.item(i)) > motor.getMaxVelocity():
+                    vel = (motor.getMaxVelocity() - 0.0001) * joint_vel.item(i) / abs(joint_vel.item(i))
+                    motor.setVelocity(vel)
+                else:
+                    motor.setVelocity(joint_vel.item(i))
+                i += 1
         
     else:
         # Preprocess observations for model
-        if (len(cam_info) == len(time_intervals)*4):
+        if (cam_info[len(time_intervals)*4-1] != 0):
             new_observations = np.array(cam_info)
             single_observation_scaled = scaler.transform(new_observations.reshape(1,-1))
             new_observation_tensor = torch.tensor(single_observation_scaled, dtype=torch.float32)
@@ -432,21 +439,17 @@ while supervisor.step(timestep) != -1:
             predicted_goal = predicted_goal.tolist()
             error = calculate_error(current, predicted_goal[0])
             joint_vel, Kps = calculate_joint_vel(error, jacobian)
-        else:
-            goal = [0, 0, 1.25, 0, 0, 1, 0]
-            error = calculate_error(current, goal)
-            joint_vel, Kps = calculate_joint_vel(error, jacobian)
 
-    # Use inverse kinematics to catch ball
-    i = 0
-    for motor in motorDevices:
-        # print(joint_vel.item(i))
-        if abs(joint_vel.item(i)) > motor.getMaxVelocity():
-            vel = (motor.getMaxVelocity() - 0.0001) * joint_vel.item(i) / abs(joint_vel.item(i))
-            motor.setVelocity(vel)
-        else:
-            motor.setVelocity(joint_vel.item(i))
-        i += 1
+            # Use inverse kinematics to catch ball
+            i = 0
+            for motor in motorDevices:
+                # print(joint_vel.item(i))
+                if abs(joint_vel.item(i)) > motor.getMaxVelocity():
+                    vel = (motor.getMaxVelocity() - 0.0001) * joint_vel.item(i) / abs(joint_vel.item(i))
+                    motor.setVelocity(vel)
+                else:
+                    motor.setVelocity(joint_vel.item(i))
+                i += 1
     
     # Check if ball is caught
     robot_pos = [-x_ee, -y_ee, z_ee + 0.6]
