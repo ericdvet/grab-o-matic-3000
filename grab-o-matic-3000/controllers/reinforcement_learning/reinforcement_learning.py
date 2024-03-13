@@ -5,6 +5,7 @@ from controller import Robot
 from controller import Supervisor
 from controller import Node
 from controller import Keyboard
+from controller import Lidar
 import numpy as np
 from math import *
 from scipy.spatial.transform import Rotation as R
@@ -14,37 +15,25 @@ import torch.nn as nn
 import joblib
 
 # Important controller variables
-LEARNING = True
+LEARNING = False
 gravity = 9.81
-
-# Creates static variables for function
-def static_vars(**kwargs):
-    def decorate(func):
-        for k in kwargs:
-            setattr(func, k, kwargs[k])
-        return func
-    return decorate
 
 # Generate the position of the ball in the Webots simulation environment.
 # Paramters: None
 # Returns:
 #       list: A list containing the x, y, and z coordinates of the ball position.
-@static_vars(prevAng=0)
 def genBallPos():
     ballNode = supervisor.getFromDef('ball')
     translation_field = ballNode.getField('translation')
-    rotation_field = ballNode.getField('rotation')
-    angle = random.uniform(genBallPos.prevAng - pi / 6, genBallPos.prevAng + pi / 6)
-    genBallPos.prevAng = angle
-    height = random.uniform(1, 3)
+
+    angle = random.uniform(0, 2 * pi)
+    height = 1
     radius = 4
     x = radius * cos(angle)
     y = radius * sin(angle)
     
     startingPosition = [x, y, height]
     translation_field.setSFVec3f(startingPosition)
-    rotation_field.setSFRotation([0, 0, 1, 0])
-    ballNode = None
     return startingPosition
 
 # Function to launch a ball from a random position towards a random target point within the robot's reachable area
@@ -53,22 +42,26 @@ def genBallPos():
 #       List of velocities [velx, vely, velz] to launch the ball towards the target
 #       List of target coordinates [targetX, targetY, targetZ]
 def launchBall():
-    tof = 1.5 # random.uniform(1,2)
+    tof = 2 # random.uniform(1,2)
     ballNode = supervisor.getFromDef('ball')
-    maxRobotReach = 1
+    maxRobotReach = 0.8
     minRobotReach = 0.6
-    # targetX, targetY, targetZ = random.uniform(-maxRobotReach, maxRobotReach), random.uniform(-maxRobotReach, maxRobotReach), random.uniform(0.25, 1.25)
+    if random.choice([True, False]):
+        targetX = random.uniform(-maxRobotReach, -minRobotReach)
+    else:
+        targetX = random.uniform(minRobotReach, maxRobotReach)
+
+    if random.choice([True, False]):
+        targetY = random.uniform(-maxRobotReach, -minRobotReach)
+    else:
+        targetY = random.uniform(minRobotReach, maxRobotReach)
+
+    targetZ = random.uniform(1, 1.25)
     translation_field = ballNode.getField('translation')
     x, y, z = translation_field.getSFVec3f()
-    angle = atan2(y,x)
-    angle = random.uniform(angle - pi / 4, angle + pi / 4)
-    radius = 0.8 # random.uniform(minRobotReach, maxRobotReach)
-    targetX = radius * cos(angle)
-    targetY = radius * sin(angle)
-    targetZ = 1 # random.uniform(0.25, 1.25)
     velx = (targetX - x) / tof
     vely = (targetY - y) / tof
-    velz = (targetZ - z + (1 / 2 * gravity * tof**2)) / tof
+    velz = (targetZ - z + (1 / 2) * gravity * tof**2) / tof
     ballNode.setVelocity([velx, vely, velz, 0, 0, 0])
     ballNode = None
     return ([velx, vely, velz], [targetX, targetY, targetZ])
@@ -323,8 +316,11 @@ if not LEARNING:
     # Load scalar (not sure if necessary?)
     scaler = joblib.load('scaler.pkl')
 
+sucker = supervisor.getDevice("vacuum gripper")
+sucker.turnOn()
+sucker.enablePresence(timestep)
+
 while supervisor.step(timestep) != -1:
-    
     
     # Shoot ball towards robot arm at regular intervals
     if not ballLaunched:
@@ -340,7 +336,6 @@ while supervisor.step(timestep) != -1:
     elif (currentTime - lastLaunch) < 3.6:
         ballNode = supervisor.getFromDef('ball')
         ball_translation_field = ballNode.getField('translation')
-        ball_rotation_field = ballNode.getField('rotation')
         startingPosition = [0, 0, -1]
         ball_translation_field.setSFVec3f(startingPosition)
     else:
@@ -348,10 +343,10 @@ while supervisor.step(timestep) != -1:
         numRuns += 1
         if ball_caught:
             print(" Success", end = '')
-        if LEARNING:
-            outcomes.append(ball_caught)
-            actions.append(goal)
-            observations.append(ball_initial_info)
+            if LEARNING:
+                outcomes.append(ball_caught)
+                actions.append(goal)
+                observations.append(ball_initial_info)
         ball_caught = False
             
     currentTime = supervisor.getTime()
@@ -401,7 +396,16 @@ while supervisor.step(timestep) != -1:
     # Check if ball is caught
     robot_pos = [-x_ee, -y_ee, z_ee + 0.6]
     if isTouched(robot_pos):
-        ball_caught = True
+        sucker.turnOn()
+        if sucker.getPresence():
+            ball_caught = True
+            ballNode = supervisor.getFromDef('ball')
+            ball_translation_field = ballNode.getField('translation')
+            startingPosition = [0, 0, -1]
+            # ball_translation_field.setSFVec3f(startingPosition)
+            # ballNode.setVelocity([0, 0, -1, 0, 0, 0])
+    else:
+        sucker.turnOff()
     
     # Store observation and action data
     if LEARNING:

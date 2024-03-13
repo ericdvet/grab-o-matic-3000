@@ -8,4 +8,5 @@ projectionMode: PERSPECTIVE
 renderingMode: PLAIN
 orthographicViewHeight: 2.92522
 textFiles: -1
+globalOptionalRendering: AllBoundingObjects
 consoles: Console:All:All
