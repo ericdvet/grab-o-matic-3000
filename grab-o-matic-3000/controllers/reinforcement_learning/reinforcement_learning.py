@@ -320,6 +320,14 @@ sucker = supervisor.getDevice("vacuum gripper")
 sucker.turnOn()
 sucker.enablePresence(timestep)
 
+c = supervisor.getDevice("camera")
+c.enable(timestep)
+c.recognitionEnable(timestep)
+
+c2 = supervisor.getDevice("camera2")
+c2.enable(timestep)
+c2.recognitionEnable(timestep)
+
 while supervisor.step(timestep) != -1:
     
     # Shoot ball towards robot arm at regular intervals

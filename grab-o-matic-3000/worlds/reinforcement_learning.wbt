@@ -72,12 +72,30 @@ TexturedBackground {
 TexturedBackground {
   texture "mars"
 }
-DEF ball Ball {
-  translation 0 0 0
-  rotation 0 1 0 0
-  mass 0.005
-  linearDamping 0
-  angularDamping 0
+DEF ball Solid {
+  translation -1.8402756753271667 -2.8667448859393505 4.733237798584356
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 1 0.54 0.08
+        metalness 0
+      }
+      geometry Sphere {
+        radius 0.05
+        subdivision 2
+      }
+    }
+  ]
+  name "ball"
+  boundingObject Sphere {
+    radius 0.05
+  }
+  physics Physics {
+    density 1
+  }
+  recognitionColors [
+    1 0.85 0.5
+  ]
 }
 DEF TARGET Solid {
   translation 0 0 2.16
