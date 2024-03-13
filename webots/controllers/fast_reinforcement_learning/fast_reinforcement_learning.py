@@ -15,7 +15,6 @@ import random
 import torch
 import torch.nn as nn
 import joblib
-from model import ImitationModel
 
 # Variable determing amount of camera frames to capture
 NUM_FRAMES = 10
@@ -309,15 +308,6 @@ ball_caught = False
 lastLaunch = 0
 cam_info = []
 
-if not LEARNING:
-    # Load the trained model
-    model = ImitationModel(input_size=NUM_FRAMES*4, output_size=7)
-    model.load_state_dict(torch.load('imitation_model.pth'))
-    model.eval()
-    
-    # Load scalar (not sure if necessary?)
-    scaler = joblib.load('scaler.pkl')
-
 # camTimestep = 8
 
 c = supervisor.getDevice("camera")
@@ -337,8 +327,6 @@ frame_count = 0
 has_frames = False
 
 sucker = supervisor.getDevice("vacuum gripper")
-sucker.turnOn()
-sucker.enablePresence(timestep)
 
 while supervisor.step(timestep) != -1:
     
@@ -356,7 +344,7 @@ while supervisor.step(timestep) != -1:
         for i in time_intervals:
             cam_info.extend([0, 0, 0, 0])
 
-    if (currentTime - lastLaunch) < 3.5:
+    if not has_frames:
         translation_field.setSFVec3f(targetPos)
         if not has_frames:
             balls = c.getRecognitionObjects()
@@ -371,36 +359,29 @@ while supervisor.step(timestep) != -1:
                 has_frames = True
 
     else:
-        # Drop the ball for 0.1 seconds before resetting
-        if (currentTime - lastLaunch) < 3.6:  # Adjust the timing here
-            ballX, ballY, ballZ = genBallPos()
-            vels, targetPos = launchBall()
-        else:
-            ballLaunched = False
-            numRuns += 1
-            if ball_caught:
-                print(" Success", end = '')
-                if LEARNING:
-                    outcomes.append(ball_caught)
-                    actions.append(goal)
-                    observations.append(np.array(cam_info))
-            ball_caught = False
+
+        ballLaunched = False
+        numRuns += 1
+        if ball_caught:
+            print(" Success", end = '')
+            if LEARNING:
+                outcomes.append(ball_caught)
+                actions.append(goal)
+                observations.append(np.array(cam_info))
+        ball_caught = True
 
     currentTime = supervisor.getTime()
-    if (currentTime - lastLaunch) < 1.0:
-        sucker.turnOff()
-    else:
-        sucker.turnOn()
-    # Calculate current motor location
-    motor_ang = []
-    for motor in motorDevices:
-        motor_ang.append(motor.getPositionSensor().getValue())
+
+    # # Calculate current motor location
+    # motor_ang = []
+    # for motor in motorDevices:
+    #     motor_ang.append(motor.getPositionSensor().getValue())
         
-    jacobian = create_jacobian(motor_ang)
-    H = generate_final_transform(motor_ang)
-    x_ee,y_ee,z_ee = H[0,3], H[1, 3], H[2, 3]
-    yaw, pitch, roll = euler_from_Htrans(H)
-    current = [x_ee,y_ee,z_ee,yaw,pitch,roll]
+    # jacobian = create_jacobian(motor_ang)
+    # H = generate_final_transform(motor_ang)
+    # x_ee,y_ee,z_ee = H[0,3], H[1, 3], H[2, 3]
+    # yaw, pitch, roll = euler_from_Htrans(H)
+    # current = [x_ee,y_ee,z_ee,yaw,pitch,roll]
         
     if LEARNING:
         # Calculate error based upon calculated error
@@ -410,50 +391,8 @@ while supervisor.step(timestep) != -1:
             goal[0] *= -1
             goal[1] *= -1
             goal.extend(rotation_field.getSFRotation())
-            error = calculate_error(current, goal)
-            joint_vel, Kps = calculate_joint_vel(error, jacobian)
-
-            # Use inverse kinematics to catch ball
-            i = 0
-            for motor in motorDevices:
-                # print(joint_vel.item(i))
-                if abs(joint_vel.item(i)) > motor.getMaxVelocity():
-                    vel = (motor.getMaxVelocity() - 0.0001) * joint_vel.item(i) / abs(joint_vel.item(i))
-                    motor.setVelocity(vel)
-                else:
-                    motor.setVelocity(joint_vel.item(i))
-                i += 1
         
-    else:
-        # Preprocess observations for model
-        if (has_frames):
-            new_observations = np.array(cam_info)
-            single_observation_scaled = scaler.transform(new_observations.reshape(1,-1))
-            new_observation_tensor = torch.tensor(single_observation_scaled, dtype=torch.float32)
-            
-            # Use the trained model to predict actions based on the new observations
-            with torch.no_grad():
-                predicted_goal = model(new_observation_tensor)
-            predicted_goal = predicted_goal.tolist()
-            error = calculate_error(current, predicted_goal[0])
-            joint_vel, Kps = calculate_joint_vel(error, jacobian)
-
-            # Use inverse kinematics to catch ball
-            i = 0
-            for motor in motorDevices:
-                # print(joint_vel.item(i))
-                if abs(joint_vel.item(i)) > motor.getMaxVelocity():
-                    vel = (motor.getMaxVelocity() - 0.0001) * joint_vel.item(i) / abs(joint_vel.item(i))
-                    motor.setVelocity(vel)
-                else:
-                    motor.setVelocity(joint_vel.item(i))
-                i += 1
-    
-    # Check if ball is caught
-    robot_pos = [-x_ee, -y_ee, z_ee + 0.6]
-    if isTouched(robot_pos):
-        ball_caught = True
-    
+    ball_caught = True
     # Store observation and action data
     if LEARNING:
         if (numRuns == 1000 + 2):
