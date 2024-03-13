@@ -57,6 +57,7 @@ PROTO UR10e [
           frameColor     1 0 0   
           frameThickness 1       
           segmentation   FALSE   
+          occlusion 0
         }
       }
       Pose {

@@ -14,8 +14,11 @@ import torch
 import torch.nn as nn
 import joblib
 
+# Variable determing amount of camera frames to capture
+NUM_FRAMES = 10
+
 # Important controller variables
-LEARNING = False
+LEARNING = True
 gravity = 9.81
 
 # Generate the position of the ball in the Webots simulation environment.
@@ -328,6 +331,14 @@ c2 = supervisor.getDevice("camera2")
 c2.enable(timestep)
 c2.recognitionEnable(timestep)
 
+time_intervals = [0.05, 0.1 ,0.15, 0.2, 0.25]
+cam_info = []
+for i in range(NUM_FRAMES):
+    cam_info.extend([0, 0, 0, 0])
+
+frame_count = 0
+has_frames = False
+
 while supervisor.step(timestep) != -1:
     
     # Shoot ball towards robot arm at regular intervals
@@ -338,9 +349,26 @@ while supervisor.step(timestep) != -1:
         print('\nTrial ', numRuns, end = '')
         ballLaunched = True
         lastLaunch = currentTime
+        has_frames = False
+        # c.enable(timestep)
+        # c2.enable(timestep)
 
     if (currentTime - lastLaunch) < 3.5:
         translation_field.setSFVec3f(targetPos)
+        if (currentTime - lastLaunch) > 0.1:
+            if not has_frames:
+                balls = c.getRecognitionObjects()
+                balls2 = c2.getRecognitionObjects()
+                cam_info[4*frame_count:4*frame_count+2] = balls[0].getPositionOnImage()[:2]
+                cam_info[4*frame_count+2:4*frame_count+4] = balls2[0].getPositionOnImage()[:2]
+                # cam_info[frame_count:frame_count+2] = balls[0].getPositionOnImage()[:2]
+                # cam_info[frame_count+2:frame_count+4] = balls2[0].getPositionOnImage()[:2]
+                frame_count+=1
+                if frame_count == NUM_FRAMES:
+                    # c.disable()
+                    # c2.disable()
+                    frame_count = 0
+                    has_frames = True
     elif (currentTime - lastLaunch) < 3.6:
         ballNode = supervisor.getFromDef('ball')
         ball_translation_field = ballNode.getField('translation')
@@ -352,6 +380,7 @@ while supervisor.step(timestep) != -1:
         if ball_caught:
             print(" Success", end = '')
             if LEARNING:
+                print(np.array(cam_info))
                 outcomes.append(ball_caught)
                 actions.append(goal)
                 observations.append(ball_initial_info)

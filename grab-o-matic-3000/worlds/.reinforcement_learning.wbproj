@@ -10,5 +10,5 @@ orthographicViewHeight: 2.92522
 textFiles: -1
 globalOptionalRendering: AllBoundingObjects
 consoles: Console:All:All
-renderingDevicePerspectives: UR10e:camera;1;0.18913;0;0.278922
-renderingDevicePerspectives: UR10e:camera2;1;0.190217;0;0
+renderingDevicePerspectives: UR10e:camera;1;0.183333;0;0.277338
+renderingDevicePerspectives: UR10e:camera2;1;0.186111;0;0
