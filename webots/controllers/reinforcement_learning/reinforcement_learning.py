@@ -60,22 +60,33 @@ def genBallPos():
 #       List of velocities [velx, vely, velz] to launch the ball towards the target
 #       List of target coordinates [targetX, targetY, targetZ]
 def launchBall():
-    tof = random.uniform(1,2)
+    # tof = random.uniform(1,2)
     ballNode = supervisor.getFromDef('ball')
     maxRobotReach = 1
     minRobotReach = 0.6
     # targetX, targetY, targetZ = random.uniform(-maxRobotReach, maxRobotReach), random.uniform(-maxRobotReach, maxRobotReach), random.uniform(0.25, 1.25)
     translation_field = ballNode.getField('translation')
     x, y, z = translation_field.getSFVec3f()
-    angle = atan2(y,x)
-    angle = random.uniform(angle - pi / 4, angle + pi / 4)
-    radius = random.uniform(minRobotReach, maxRobotReach)
+    # angle = atan2(y,x)
+    # angle = random.uniform(angle - pi / 4, angle + pi / 4)
+    # radius = random.uniform(minRobotReach, maxRobotReach)
+    # targetX = radius * cos(angle)
+    # targetY = radius * sin(angle)
+    # targetZ = random.uniform(0.25, 1.25)
+    # velx = (targetX - x) / tof
+    # vely = (targetY - y) / tof
+    # velz = (targetZ - z + (1 / 2 * gravity * tof**2)) / tof
+    
+    tof = 1
+    angle = atan(y/x)
+    radius = 0.8
     targetX = radius * cos(angle)
     targetY = radius * sin(angle)
-    targetZ = random.uniform(0.25, 1.25)
+    targetZ = 0.75
     velx = (targetX - x) / tof
     vely = (targetY - y) / tof
     velz = (targetZ - z + (1 / 2 * gravity * tof**2)) / tof
+    
     ballNode.setVelocity([velx, vely, velz, 0, 0, 0])
     ballNode = None
     return ([velx, vely, velz], [targetX, targetY, targetZ])
@@ -347,6 +358,7 @@ while supervisor.step(timestep) != -1:
     if not ballLaunched:
         ballX, ballY, ballZ = genBallPos()
         vels, targetPos = launchBall()
+        og_data = np.array([ballX, ballY, ballZ] + vels)
         ball_initial_info = [ballX, ballY, ballZ, vels[0], vels[1], vels[2]]
         print('\nTrial ', numRuns, end = '')
         ballLaunched = True
@@ -400,7 +412,8 @@ while supervisor.step(timestep) != -1:
                 if LEARNING:
                     outcomes.append(ball_caught)
                     actions.append(goal)
-                    observations.append(np.array(cam_info))
+                    #observations.append(np.array(cam_info))
+                    observations.append(og_data)
             ball_caught = False
 
     currentTime = supervisor.getTime()

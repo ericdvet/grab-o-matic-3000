@@ -1,0 +1,141 @@
+#VRML_SIM R2022a utf8
+WorldInfo {
+  info [
+    "Universal Robot UR3e, UR5e and UR10e grasping cans using Robotiq 3F grippers."
+  ]
+  title "Universal Robot"
+  gravity 9.81
+  basicTimeStep 8
+  physicsDisableAngularThreshold 0.1
+  contactProperties [
+    ContactProperties {
+      bounce 0.1
+    }
+    ContactProperties {
+      material1 "slope"
+      coulombFriction [
+        0.5
+      ]
+    }
+  ]
+}
+Viewpoint {
+  orientation -0.2794709224360323 -0.041187160908317706 0.9592703588087489 3.466354426111385
+  position 5.236502799412754 2.3263218413284434 4.176642353980142
+  exposure 1.7
+}
+Floor {
+  size 20 20
+  appearance ThreadMetalPlate {
+  }
+}
+WoodenBox {
+  size 0.2 0.2 0.6
+}
+UR10e {
+  translation 0 0 0.6
+  controller "reinforcement_learning"
+  supervisor TRUE
+  children [
+    
+  ]
+  toolSlot [
+    DEF end_effector Pen {
+      translation 0 0.05 0
+      rotation 0 0.7071067811862364 -0.7071067811862364 3.14159
+      children [
+        Transform {
+          translation 0 0 0.05
+          children [
+            Shape {
+              appearance BrushedAluminium {
+                colorOverride 0 0.4131074998092622 0.9919279774166476
+              }
+              geometry Cylinder {
+                height 0.05
+                radius 0.04
+                subdivision 24
+              }
+            }
+          ]
+        }
+        Transform {
+          translation 0 0 0.04
+          children [
+            Shape {
+              appearance BrushedAluminium {
+                colorOverride 0 0 0
+              }
+              geometry Cylinder {
+                height 0.07
+                radius 0.01
+                subdivision 12
+              }
+            }
+          ]
+        }
+      ]
+      inkColor 0.929412 0.2 0.231373
+      leadSize 0.01
+      maxDistance 0.02
+    }
+  ]
+}
+DEF LIDAR Lidar {
+      translation 0 0 2
+      rotation 0 1 0 0.15
+      fieldOfView 1.8
+      verticalFieldOfView 0.1
+      numberOfLayers 3
+      maxRange 5
+    }
+TexturedBackground {
+  texture "mars"
+}
+DEF ball Ball {
+  translation 0 0 0
+  rotation 0 1 0 0
+  name "ball"
+  color 1.0 0.54 0.08
+  mass 0.055  
+  contactMaterial "default"
+  linearDamping 0.0
+  angularDamping 0.0
+}
+
+DEF TARGET Solid {
+  translation 0 0 2.16
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColorMap ImageTexture {
+          url [
+            "https://raw.githubusercontent.com/cyberbotics/webots/R2022a/projects/robots/abb/irb/worlds/textures/target.png"
+          ]
+        }
+        roughnessMap ImageTexture {
+          url [
+            "https://raw.githubusercontent.com/cyberbotics/webots/R2022a/projects/robots/abb/irb/worlds/textures/target.png"
+          ]
+        }
+        metalnessMap ImageTexture {
+          url [
+            "https://raw.githubusercontent.com/cyberbotics/webots/R2022a/projects/robots/abb/irb/worlds/textures/target.png"
+          ]
+        }
+        emissiveColorMap ImageTexture {
+          url [
+            "https://raw.githubusercontent.com/cyberbotics/webots/R2022a/projects/robots/abb/irb/worlds/textures/target.png"
+          ]
+        }
+        textureTransform TextureTransform {
+          scale 2 1
+        }
+      }
+      geometry Sphere {
+        radius 0.05
+        subdivision 2
+      }
+    }
+  ]
+}
