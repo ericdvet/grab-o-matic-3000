@@ -37,51 +37,34 @@ Floor {
   }
 }
 WoodenBox {
-  size 0.2 0.2 0.6
+  size 0.025 0.025 0.6
 }
 UR10e {
   translation 0 0 0.6
   controller "reinforcement_learning"
   supervisor TRUE
   toolSlot [
-    DEF end_effector Pen {
-      translation 0 0.05 0
-      rotation 0 0.7071067811862364 -0.7071067811862364 3.14159
+    VacuumGripper {
+      translation 0 0.025 0
+      rotation 1 0 0 1.5707996938995747
       children [
-        Pose {
-          translation 0 0 0.05
-          children [
-            Shape {
-              appearance BrushedAluminium {
-                colorOverride 0 0.4131074998092622 0.9919279774166476
-              }
-              geometry Cylinder {
-                height 0.05
-                radius 0.04
-                subdivision 24
-              }
-            }
-          ]
-        }
-        Pose {
-          translation 0 0 0.04
-          children [
-            Shape {
-              appearance BrushedAluminium {
-                colorOverride 0 0 0
-              }
-              geometry Cylinder {
-                height 0.07
-                radius 0.01
-                subdivision 12
-              }
-            }
-          ]
+        Shape {
+          appearance ThreadMetalPlate {
+          }
+          geometry Cylinder {
+            height 0.06
+            radius 0.03
+          }
         }
       ]
-      inkColor 0.929412 0.2 0.231373
-      leadSize 0.01
-      maxDistance 0.02
+      boundingObject Cylinder {
+        height 0.03
+        radius 0.05
+      }
+      isOn TRUE
+      tensileStrength 10
+      shearStrength 10
+      contactPoints 1
     }
   ]
 }
@@ -89,8 +72,7 @@ TexturedBackground {
   texture "mars"
 }
 DEF ball Solid {
-  translation 0 0 1
-  rotation 0 0 1 0
+  translation -1.8402756753271667 -2.8667448859393505 4.733237798584356
   children [
     Shape {
       appearance PBRAppearance {
@@ -108,6 +90,7 @@ DEF ball Solid {
     radius 0.05
   }
   physics Physics {
+    density 1
   }
   recognitionColors [
     1 0.85 0.5

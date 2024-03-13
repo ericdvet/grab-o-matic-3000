@@ -30,22 +30,23 @@ PROTO UR10e [
     children [
       DEF LEFT_CAMERA Camera {
         translation 0 8 0
-        rotation 0 0 1 -1.65
+        rotation -0.1294283 -0.1294283 -0.9831056 1.5878342
         name "camera"
         fieldOfView 1.57
         width 1080
         height 920
         recognition Recognition {
           maxRange       1000     
-          maxObjects     -1      
+          maxObjects     -1
+          occlusion      0
           frameColor     1 0 0   
           frameThickness 1       
           segmentation   FALSE   
         }
       }
       DEF TOP_CAMERA Camera {
-        translation 0 0 8
-        rotation 0 1 0 1.65
+        translation 0 0 8.5
+        rotation 0 1 0 1.57
         name "camera2"
         fieldOfView 1.57
         width 1080

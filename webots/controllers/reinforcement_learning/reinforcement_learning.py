@@ -7,6 +7,7 @@ from controller import Node
 from controller import Keyboard
 from controller import Lidar
 from controller import Camera
+from controller import VacuumGripper
 import numpy as np
 from math import *
 from scipy.spatial.transform import Rotation as R
@@ -16,8 +17,11 @@ import torch.nn as nn
 import joblib
 from model import ImitationModel
 
+# Variable determing amount of camera frames to capture
+NUM_FRAMES = 10
+
 # Important controller variables
-LEARNING = False
+LEARNING = True
 gravity = 9.81
 
 # Creates static variables for function
@@ -307,7 +311,7 @@ cam_info = []
 
 if not LEARNING:
     # Load the trained model
-    model = ImitationModel(input_size=20, output_size=7)
+    model = ImitationModel(input_size=NUM_FRAMES*4, output_size=7)
     model.load_state_dict(torch.load('imitation_model.pth'))
     model.eval()
     
@@ -326,12 +330,19 @@ c2.recognitionEnable(timestep)
 
 time_intervals = [0.05, 0.1 ,0.15, 0.2, 0.25]
 cam_info = []
-for i in time_intervals:
+for i in range(NUM_FRAMES):
     cam_info.extend([0, 0, 0, 0])
+
+frame_count = 0
+has_frames = False
+
+sucker = supervisor.getDevice("vacuum gripper")
+sucker.turnOn()
+sucker.enablePresence(timestep)
 
 while supervisor.step(timestep) != -1:
     
-    
+
     # Shoot ball towards robot arm at regular intervals
     if not ballLaunched:
         ballX, ballY, ballZ = genBallPos()
@@ -340,29 +351,42 @@ while supervisor.step(timestep) != -1:
         print('\nTrial ', numRuns, end = '')
         ballLaunched = True
         lastLaunch = currentTime
+        has_frames = False
         cam_info = []
         for i in time_intervals:
             cam_info.extend([0, 0, 0, 0])
 
     if (currentTime - lastLaunch) < 3.5:
         translation_field.setSFVec3f(targetPos)
-        balls = c.getRecognitionObjects()
-        balls2 = c2.getRecognitionObjects()
-        for index, interval in enumerate(time_intervals):
-            if (currentTime - lastLaunch) >= interval and (currentTime - lastLaunch) < interval + 0.01:
-                for ball in balls:
-                    cam_info[4*index:4*index+2] = ball.getPositionOnImage()[:2]
-                    # cam_info.extend(ball.getPositionOnImage()[:2])
-                for ball in balls2:
-                    cam_info[4*index+2:4*index+4] = ball.getPositionOnImage()[:2]
-                    # cam_info.extend(ball.getPositionOnImage()[:2])
-                if not balls:
-                    cam_info[4*index:4*index+2] = [-1, -1]
-                    #cam_info.extend([-1, -1])
-                if not balls2:
-                    cam_info[4*index+2:4*index+4] = [-1, -1]
-                    #cam_info.extend([-1, -1])
-                break
+        if not has_frames:
+            balls = c.getRecognitionObjects()
+            balls2 = c2.getRecognitionObjects()
+            cam_info[4*frame_count:4*frame_count+2] = balls[0].getPositionOnImage()[:2]
+            cam_info[4*frame_count+2:4*frame_count+4] = balls2[0].getPositionOnImage()[:2]
+            # cam_info[frame_count:frame_count+2] = balls[0].getPositionOnImage()[:2]
+            # cam_info[frame_count+2:frame_count+4] = balls2[0].getPositionOnImage()[:2]
+            frame_count+=1
+            if frame_count == NUM_FRAMES:
+                frame_count = 0
+                has_frames = True
+                # print(cam_info)
+        # balls = c.getRecognitionObjects()
+        # balls2 = c2.getRecognitionObjects()
+        # for index, interval in enumerate(time_intervals):
+        #     if (currentTime - lastLaunch) >= interval and (currentTime - lastLaunch) < interval + 0.01:
+        #         for ball in balls:
+        #             cam_info[4*index:4*index+2] = ball.getPositionOnImage()[:2]
+        #             # cam_info.extend(ball.getPositionOnImage()[:2])
+        #         for ball in balls2:
+        #             cam_info[4*index+2:4*index+4] = ball.getPositionOnImage()[:2]
+        #             # cam_info.extend(ball.getPositionOnImage()[:2])
+        #         if not balls:
+        #             cam_info[4*index:4*index+2] = [-1, -1]
+        #             #cam_info.extend([-1, -1])
+        #         if not balls2:
+        #             cam_info[4*index+2:4*index+4] = [-1, -1]
+        #             #cam_info.extend([-1, -1])
+        #         break
     else:
         # Drop the ball for 0.1 seconds before resetting
         if (currentTime - lastLaunch) < 3.6:  # Adjust the timing here
@@ -380,7 +404,10 @@ while supervisor.step(timestep) != -1:
             ball_caught = False
 
     currentTime = supervisor.getTime()
-    
+    if (currentTime - lastLaunch) < 1.0:
+        sucker.turnOff()
+    else:
+        sucker.turnOn()
     # Calculate current motor location
     motor_ang = []
     for motor in motorDevices:
@@ -395,7 +422,7 @@ while supervisor.step(timestep) != -1:
     if LEARNING:
         # Calculate error based upon calculated error
         # print(len(cam_info), " ", len(time_intervals)*4)
-        if (cam_info[len(time_intervals)*4-1] != 0):
+        if (has_frames):
             goal = translation_field.getSFVec3f()
             goal[0] *= -1
             goal[1] *= -1
@@ -416,7 +443,7 @@ while supervisor.step(timestep) != -1:
         
     else:
         # Preprocess observations for model
-        if (cam_info[len(time_intervals)*4-1] != 0):
+        if (has_frames):
             new_observations = np.array(cam_info)
             single_observation_scaled = scaler.transform(new_observations.reshape(1,-1))
             new_observation_tensor = torch.tensor(single_observation_scaled, dtype=torch.float32)
