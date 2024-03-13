@@ -2,26 +2,47 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import StepLR
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 import joblib
+import os
+
 
 # Define neural network architecture
 class ImitationModel(nn.Module):
     def __init__(self, input_size, output_size):
         super(ImitationModel, self).__init__()
         self.fc1 = nn.Linear(input_size, 64)
-        self.fc2 = nn.Linear(64, 32)
-        self.fc3 = nn.Linear(32, output_size)
+        self.bn1 = nn.BatchNorm1d(64)
+        self.fc2 = nn.Linear(64, 128)
+        self.bn2 = nn.BatchNorm1d(128)
+        self.fc3 = nn.Linear(128, 64)
+        self.bn3 = nn.BatchNorm1d(64)
+        self.fc4 = nn.Linear(64, 32)
+        self.bn4 = nn.BatchNorm1d(32)
+        self.dropout = nn.Dropout(0.5)
+        self.fc5 = nn.Linear(32, output_size)
+        self.leaky_relu = nn.LeakyReLU(0.01)
+
 
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.leaky_relu(self.bn1(self.fc1(x)))
+        x = self.dropout(x)
+        x = self.leaky_relu(self.bn2(self.fc2(x)))
+        x = self.dropout(x)
+        x = self.leaky_relu(self.bn3(self.fc3(x)))
+        x = self.dropout(x)
+        x = self.leaky_relu(self.bn4(self.fc4(x)))
+        x = self.dropout(x)
+        x = self.fc5(x)
         return x
     
 if __name__ == '__main__':
     # Load data
+    # MODEL_EXISTS = os.path.isfile('imitation_model.pth')
+    MODEL_EXISTS = False
+
     data_obs = np.load('observations.npz')
     data_act = np.load('actions.npz')
     data_out = np.load('outcomes.npz')
@@ -54,17 +75,22 @@ if __name__ == '__main__':
 
     # Initialize model, loss function, and optimizer
     model = ImitationModel(input_size=observations_scaled.shape[1], output_size=actions.shape[1])
+
+    if MODEL_EXISTS:
+        print("Loading existing model")
+        model.load_state_dict(torch.load('imitation_model.pth'))
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-
+    scheduler = StepLR(optimizer, step_size=1, gamma=0.7)  # Decays the learning rate by gamma every step_size epochs
     # Train the model
-    num_epochs = 1000
+    num_epochs = 10000
     batch_size = 32
 
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
-
+        if epoch % 100 == 0:
+            print(f'Epoch: {epoch}/{num_epochs}')
         for i in range(0, len(obs_train_tensor), batch_size):
             optimizer.zero_grad()
             outputs = model(obs_train_tensor[i:i+batch_size])
@@ -72,7 +98,8 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
-
+        scheduler.step()  # Adjust the learning rate
+        print(f"Epoch {epoch}, Loss: {loss.item()}")
     # Evaluate the model
     model.eval()
     with torch.no_grad():

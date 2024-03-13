@@ -307,24 +307,24 @@ cam_info = []
 
 if not LEARNING:
     # Load the trained model
-    model = ImitationModel(input_size=12, output_size=7)
+    model = ImitationModel(input_size=20, output_size=7)
     model.load_state_dict(torch.load('imitation_model.pth'))
     model.eval()
     
     # Load scalar (not sure if necessary?)
     scaler = joblib.load('scaler.pkl')
 
-camTimestep = 64
+# camTimestep = 8
 
 c = supervisor.getDevice("camera")
-c.enable(camTimestep)
-c.recognitionEnable(camTimestep)
+c.enable(timestep)
+c.recognitionEnable(timestep)
 
 c2 = supervisor.getDevice("camera2")
-c2.enable(camTimestep)
-c2.recognitionEnable(camTimestep)
+c2.enable(timestep)
+c2.recognitionEnable(timestep)
 
-time_intervals = [0.1, 0.2, 0.3, 0.4]
+time_intervals = [0.05, 0.1 ,0.15, 0.2, 0.25]
 cam_info = []
 for i in time_intervals:
     cam_info.extend([0, 0, 0, 0])
@@ -378,7 +378,7 @@ while supervisor.step(timestep) != -1:
                     actions.append(goal)
                     observations.append(np.array(cam_info))
             ball_caught = False
-            
+
     currentTime = supervisor.getTime()
     
     # Calculate current motor location
