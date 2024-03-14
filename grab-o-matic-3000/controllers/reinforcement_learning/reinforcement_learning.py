@@ -438,14 +438,15 @@ while supervisor.step(timestep) != -1:
             # Use inverse kinematics to catch ball
             joint_vel = calculate_joint_vel(error, jacobian)
             i = 0
-            for motor in motorDevices:
-                # print(joint_vel.item(i))
-                if abs(joint_vel.item(i)) > motor.getMaxVelocity():
-                    vel = (motor.getMaxVelocity() - 0.0001) * joint_vel.item(i) / abs(joint_vel.item(i))
-                    motor.setVelocity(vel)
-                else:
-                    motor.setVelocity(joint_vel.item(i))
-                i += 1
+            if not ball_caught:
+                for motor in motorDevices:
+                    # print(joint_vel.item(i))
+                    if abs(joint_vel.item(i)) > motor.getMaxVelocity():
+                        vel = (motor.getMaxVelocity() - 0.0001) * joint_vel.item(i) / abs(joint_vel.item(i))
+                        motor.setVelocity(vel)
+                    else:
+                        motor.setVelocity(joint_vel.item(i))
+                    i += 1
     
     # Check if ball is caught
     robot_pos = [-x_ee, -y_ee, z_ee + 0.6]

@@ -22,7 +22,7 @@ class ImitationModel(nn.Module):
 
 
 if __name__ == '__main__':
-    MODEL_EXISTS = False
+    MODEL_EXISTS = True
 
     # Load data
     data_obs = np.load('observations.npz')
@@ -65,7 +65,7 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Train the model
-    num_epochs = 1000
+    num_epochs = 10000
     batch_size = 32
 
     for epoch in range(num_epochs):
