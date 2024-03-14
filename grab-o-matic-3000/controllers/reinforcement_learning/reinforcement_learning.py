@@ -13,12 +13,13 @@ import random
 import torch
 import torch.nn as nn
 import joblib
+from model import ImitationModel
 
 # Variable determing amount of camera frames to capture
 NUM_FRAMES = 10
 
 # Important controller variables
-LEARNING = True
+LEARNING = False
 gravity = 9.81
 
 # Generate the position of the ball in the Webots simulation environment.
@@ -298,21 +299,21 @@ numRuns = 0
 ball_caught = False
 
 if not LEARNING:
-    class ImitationModel(nn.Module):
-        def __init__(self, input_size, output_size):
-            super(ImitationModel, self).__init__()
-            self.fc1 = nn.Linear(input_size, 64)
-            self.fc2 = nn.Linear(64, 32)
-            self.fc3 = nn.Linear(32, output_size)
+    # class ImitationModel(nn.Module):
+    #     def __init__(self, input_size, output_size):
+    #         super(ImitationModel, self).__init__()
+    #         self.fc1 = nn.Linear(input_size, 64)
+    #         self.fc2 = nn.Linear(64, 32)
+    #         self.fc3 = nn.Linear(32, output_size)
 
-        def forward(self, x):
-            x = torch.relu(self.fc1(x))
-            x = torch.relu(self.fc2(x))
-            x = self.fc3(x)
-            return x
+    #     def forward(self, x):
+    #         x = torch.relu(self.fc1(x))
+    #         x = torch.relu(self.fc2(x))
+    #         x = self.fc3(x)
+    #         return x
     
     # Load the trained model
-    model = ImitationModel(input_size=6, output_size=7)
+    model = ImitationModel(input_size=NUM_FRAMES * 4, output_size=7)
     model.load_state_dict(torch.load('imitation_model.pth'))
     model.eval()
     
@@ -350,8 +351,9 @@ while supervisor.step(timestep) != -1:
         ballLaunched = True
         lastLaunch = currentTime
         has_frames = False
-        # c.enable(timestep)
-        # c2.enable(timestep)
+        if LEARNING:
+            c.enable(timestep)
+            c2.enable(timestep)
 
     if (currentTime - lastLaunch) < 3.5:
         translation_field.setSFVec3f(targetPos)
@@ -361,12 +363,12 @@ while supervisor.step(timestep) != -1:
                 balls2 = c2.getRecognitionObjects()
                 cam_info[4*frame_count:4*frame_count+2] = balls[0].getPositionOnImage()[:2]
                 cam_info[4*frame_count+2:4*frame_count+4] = balls2[0].getPositionOnImage()[:2]
-                # cam_info[frame_count:frame_count+2] = balls[0].getPositionOnImage()[:2]
-                # cam_info[frame_count+2:frame_count+4] = balls2[0].getPositionOnImage()[:2]
+
                 frame_count+=1
                 if frame_count == NUM_FRAMES:
-                    # c.disable()
-                    # c2.disable()
+                    if LEARNING:
+                        c.disable()
+                        c2.disable()
                     frame_count = 0
                     has_frames = True
     elif (currentTime - lastLaunch) < 3.6:
@@ -380,10 +382,13 @@ while supervisor.step(timestep) != -1:
         if ball_caught:
             print(" Success", end = '')
             if LEARNING:
-                print(np.array(cam_info))
+                # print(cam_info)
+                # print(len(cam_info))
+                obs = np.copy(cam_info)
+                acts = np.copy(goal)
                 outcomes.append(ball_caught)
-                actions.append(goal)
-                observations.append(ball_initial_info)
+                actions.append(acts)
+                observations.append(obs)
         ball_caught = False
             
     currentTime = supervisor.getTime()
@@ -406,29 +411,41 @@ while supervisor.step(timestep) != -1:
         goal[1] *= -1
         goal.extend(rotation_field.getSFRotation())
         error = calculate_error(current, goal)
+        # Use inverse kinematics to catch ball
+        joint_vel = calculate_joint_vel(error, jacobian)
+        i = 0
+        for motor in motorDevices:
+            # print(joint_vel.item(i))
+            if abs(joint_vel.item(i)) > motor.getMaxVelocity():
+                vel = (motor.getMaxVelocity() - 0.0001) * joint_vel.item(i) / abs(joint_vel.item(i))
+                motor.setVelocity(vel)
+            else:
+                motor.setVelocity(joint_vel.item(i))
+            i += 1
     else:
         # Preprocess observations for model
-        new_observations = np.array(ball_initial_info)
-        single_observation_scaled = scaler.transform(new_observations.reshape(1,-1))
-        new_observation_tensor = torch.tensor(single_observation_scaled, dtype=torch.float32)
-        
-        # Use the trained model to predict actions based on the new observations
-        with torch.no_grad():
-            predicted_goal = model(new_observation_tensor)
-        predicted_goal = predicted_goal.tolist()
-        error = calculate_error(current, predicted_goal[0])
+        if(has_frames):
+            new_observations = np.array(cam_info)
+            single_observation_scaled = scaler.transform(new_observations.reshape(1,-1))
+            new_observation_tensor = torch.tensor(single_observation_scaled, dtype=torch.float32)
+            
+            # Use the trained model to predict actions based on the new observations
+            with torch.no_grad():
+                predicted_goal = model(new_observation_tensor)
+            predicted_goal = predicted_goal.tolist()
+            error = calculate_error(current, predicted_goal[0])
 
-    # Use inverse kinematics to catch ball
-    joint_vel = calculate_joint_vel(error, jacobian)
-    i = 0
-    for motor in motorDevices:
-        # print(joint_vel.item(i))
-        if abs(joint_vel.item(i)) > motor.getMaxVelocity():
-            vel = (motor.getMaxVelocity() - 0.0001) * joint_vel.item(i) / abs(joint_vel.item(i))
-            motor.setVelocity(vel)
-        else:
-            motor.setVelocity(joint_vel.item(i))
-        i += 1
+            # Use inverse kinematics to catch ball
+            joint_vel = calculate_joint_vel(error, jacobian)
+            i = 0
+            for motor in motorDevices:
+                # print(joint_vel.item(i))
+                if abs(joint_vel.item(i)) > motor.getMaxVelocity():
+                    vel = (motor.getMaxVelocity() - 0.0001) * joint_vel.item(i) / abs(joint_vel.item(i))
+                    motor.setVelocity(vel)
+                else:
+                    motor.setVelocity(joint_vel.item(i))
+                i += 1
     
     # Check if ball is caught
     robot_pos = [-x_ee, -y_ee, z_ee + 0.6]
@@ -446,7 +463,7 @@ while supervisor.step(timestep) != -1:
     
     # Store observation and action data
     if LEARNING:
-        if (numRuns == 1000):
+        if (numRuns == 10000):
             np.savez("observations.npz", observations)
             np.savez("actions.npz", actions)
             np.savez("outcomes.npz", outcomes)
