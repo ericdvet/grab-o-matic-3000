@@ -41,7 +41,7 @@ WoodenBox {
 }
 UR10e {
   translation 0 0 0.6
-  controller "reinforcement_learning"
+  controller "imitation_learning"
   supervisor TRUE
   toolSlot [
     VacuumGripper {
