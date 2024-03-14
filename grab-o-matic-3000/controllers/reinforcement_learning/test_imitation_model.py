@@ -6,6 +6,7 @@ import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import joblib
+from model import ImitationModel
 
 numberOfTests = 100
 gravity = 9.81
@@ -38,19 +39,6 @@ def generateTrainingData():
     vely = (targetY - y) / tof
     velz = (targetZ - z + (1 / 2) * gravity * tof**2) / tof
     return ([x, y, z], [velx, vely, velz], [targetX, targetY, targetZ, 0, 0, 1, 0])
-
-class ImitationModel(nn.Module):
-    def __init__(self, input_size, output_size):
-        super(ImitationModel, self).__init__()
-        self.fc1 = nn.Linear(input_size, 64)
-        self.fc2 = nn.Linear(64, 32)
-        self.fc3 = nn.Linear(32, output_size)
-
-    def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
 
 new_observations = []
 new_correct_actions = []

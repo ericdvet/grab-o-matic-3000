@@ -92,6 +92,7 @@ DEF ball Solid {
   }
   physics Physics {
     density 1
+    mass 0.001
   }
   recognitionColors [
     1 0.85 0.5

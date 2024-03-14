@@ -447,6 +447,9 @@ while supervisor.step(timestep) != -1:
                     else:
                         motor.setVelocity(joint_vel.item(i))
                     i += 1
+            else:
+                for i, motor in enumerate(motorDevices):
+                    motor.setVelocity(0)
     
     # Check if ball is caught
     robot_pos = [-x_ee, -y_ee, z_ee + 0.6]
