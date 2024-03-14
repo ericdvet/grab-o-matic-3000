@@ -13,13 +13,25 @@ import random
 import torch
 import torch.nn as nn
 import joblib
-from model import ImitationModel
+from model import ImitationModel, ImitationModelFiveLayers
+
+DEMO = False
+demo_iterator = 0
+success_ball_info = [[-1.3704633246986604, -3.7579023770789863, 1, 1.037752345407003, 2.2266142389942374, 9.83105031343256],
+    [3.988314011787137, 0.3055345207703928, 1, -2.3345027560678413, -0.4983019634587256, 9.892886973323831],
+                     [1.3865763613851851, 3.751986939482575, 1, -1.0601001341628018, -1.534201462351282, 9.811307809100205],
+                     [-1.4762112629027628, -3.7176336972971167, 1, 0.38484393822263496, 2.2101807447639925, 9.919877291223392]]
+
+succes_bal_targets = [[0.6890058150478973, -0.7122490557570307, 1.0932401304097925],
+                        [-0.680691500348546, -0.6910694061470585, 1.1657739466476615],
+                      [-0.7336239069404186, 0.6835840147800106, 1.0026156182004085],
+                      [-0.7065233864574929, 0.7027277922308683, 1.2197545824467837]]
 
 # Variable determing amount of camera frames to capture
 NUM_FRAMES = 10
 
 # Important controller variables
-LEARNING = False
+LEARNING = True
 gravity = 9.81
 
 # Generate the position of the ball in the Webots simulation environment.
@@ -35,7 +47,9 @@ def genBallPos():
     radius = 4
     x = radius * cos(angle)
     y = radius * sin(angle)
-    
+    if DEMO:
+        x = success_ball_info[demo_iterator][0]
+        y = succes_bal_targets[demo_iterator][1]
     startingPosition = [x, y, height]
     translation_field.setSFVec3f(startingPosition)
     return startingPosition
@@ -61,6 +75,13 @@ def launchBall():
         targetY = random.uniform(minRobotReach, maxRobotReach)
 
     targetZ = random.uniform(1, 1.25)
+
+    if DEMO:
+        targetX = succes_bal_targets[demo_iterator][0]
+        targetY = succes_bal_targets[demo_iterator][1]
+        targetZ = succes_bal_targets[demo_iterator][2]
+
+
     translation_field = ballNode.getField('translation')
     x, y, z = translation_field.getSFVec3f()
     velx = (targetX - x) / tof
@@ -299,22 +320,10 @@ numRuns = 0
 ball_caught = False
 
 if not LEARNING:
-    # class ImitationModel(nn.Module):
-    #     def __init__(self, input_size, output_size):
-    #         super(ImitationModel, self).__init__()
-    #         self.fc1 = nn.Linear(input_size, 64)
-    #         self.fc2 = nn.Linear(64, 32)
-    #         self.fc3 = nn.Linear(32, output_size)
-
-    #     def forward(self, x):
-    #         x = torch.relu(self.fc1(x))
-    #         x = torch.relu(self.fc2(x))
-    #         x = self.fc3(x)
-    #         return x
     
     # Load the trained model
-    model = ImitationModel(input_size=NUM_FRAMES * 4, output_size=7)
-    model.load_state_dict(torch.load('imitation_model.pth'))
+    model = ImitationModelFiveLayers(input_size=NUM_FRAMES * 4, output_size=7)
+    model.load_state_dict(torch.load('imitation_model_five_layers.pth'))
     model.eval()
     
     # Load scalar (not sure if necessary?)
@@ -346,6 +355,9 @@ while supervisor.step(timestep) != -1:
     if not ballLaunched:
         ballX, ballY, ballZ = genBallPos()
         vels, targetPos = launchBall()
+        demo_iterator += 1
+        if demo_iterator == len(succes_bal_targets):
+            demo_iterator = 0
         ball_initial_info = [ballX, ballY, ballZ, vels[0], vels[1], vels[2]]
         print('\nTrial ', numRuns, end = '')
         ballLaunched = True
@@ -366,7 +378,7 @@ while supervisor.step(timestep) != -1:
 
                 frame_count+=1
                 if frame_count == NUM_FRAMES:
-                    if LEARNING:
+                    if False:
                         c.disable()
                         c2.disable()
                     frame_count = 0
@@ -380,6 +392,8 @@ while supervisor.step(timestep) != -1:
         ballLaunched = False
         numRuns += 1
         if ball_caught:
+            print('ball info: ' + str(ball_initial_info))
+            print('target pos: ' + str(targetPos))
             print(" Success", end = '')
             if LEARNING:
                 # print(cam_info)

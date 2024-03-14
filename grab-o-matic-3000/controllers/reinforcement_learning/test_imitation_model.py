@@ -6,53 +6,30 @@ import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import joblib
-from model import ImitationModel
+from model import ImitationModel, ImitationModelComplex, ImitationModelFiveLayers
 
 numberOfTests = 100
 gravity = 9.81
 
-def generateTrainingData():
-    maxRobotReach = 0.75
-    minRobotReach = 0.5
+data_obs = np.load('observations.npz')
+data_act = np.load('actions.npz')
+data_out = np.load('outcomes.npz')
 
-    tof = random.uniform(1,2)
-    if random.choice([True, False]):
-        targetX = random.uniform(-maxRobotReach, -minRobotReach)
-    else:
-        targetX = random.uniform(minRobotReach, maxRobotReach)
+new_observations = data_obs['arr_0'][:100]
+new_correct_actions = data_act['arr_0'][:100]
+outcomes = data_out['arr_0'][:100]
 
-    if random.choice([True, False]):
-        targetY = random.uniform(-maxRobotReach, -minRobotReach)
-    else:
-        targetY = random.uniform(minRobotReach, maxRobotReach)
 
-    targetZ = random.uniform(0.25, 1.25)
-    
-    angle = random.uniform(0, 2 * pi)
-    height = 1
-    radius = 4
-    x = radius * cos(angle)
-    y = radius * sin(angle)
-    z = height
+# new_observations = np.array(new_observations)
+# new_correct_actions = np.array(new_correct_actions)
 
-    velx = (targetX - x) / tof
-    vely = (targetY - y) / tof
-    velz = (targetZ - z + (1 / 2) * gravity * tof**2) / tof
-    return ([x, y, z], [velx, vely, velz], [targetX, targetY, targetZ, 0, 0, 1, 0])
+model5 = ImitationModelFiveLayers(input_size=new_observations.shape[1], output_size=new_correct_actions.shape[1])
+model5.load_state_dict(torch.load('imitation_model_five_layers.pth'))
+model5.eval()
 
-new_observations = []
-new_correct_actions = []
-for i in range(numberOfTests):
-    fruitPos, fruitVel, target = generateTrainingData()
-    new_observations.append([fruitPos[0], fruitPos[1], fruitPos[2], fruitVel[0], fruitVel[1], fruitVel[2]])
-    target_pov_correction = [-target[0], -target[1], target[2], target[3], target[4], target[5], target[6]]
-    new_correct_actions.append(target_pov_correction)
-new_observations = np.array(new_observations)
-new_correct_actions = np.array(new_correct_actions)
-
-model = ImitationModel(input_size=new_observations.shape[1], output_size=new_correct_actions.shape[1])
-model.load_state_dict(torch.load('imitation_model.pth'))
-model.eval()
+model3 = ImitationModel(input_size=new_observations.shape[1], output_size=new_correct_actions.shape[1])
+model3.load_state_dict(torch.load('imitation_model.pth'))
+model3.eval()
 
 scaler = joblib.load('scaler.pkl')
 new_observations_scaled = scaler.fit_transform(new_observations)
@@ -62,41 +39,77 @@ new_observations_tensor = torch.tensor(new_observations_scaled, dtype=torch.floa
 
 # Use the trained model to predict actions based on the new observations
 with torch.no_grad():
-    predicted_actions = model(new_observations_tensor)
+    predicted_actions5 = model5(new_observations_tensor)
+    predicted_actions3 = model3(new_observations_tensor)
 
 for i in range(1, numberOfTests):
-    temp = abs(predicted_actions[i] - new_correct_actions[i])
+    temp = abs(predicted_actions5[i] - new_correct_actions[i])
     
 # Extract x, y, z components of predicted actions and correct actions
-predicted_x = predicted_actions[:, 0]
-predicted_y = predicted_actions[:, 1]
-predicted_z = predicted_actions[:, 2]
+predicted_x_5 = predicted_actions5[:, 0]
+predicted_y_5 = predicted_actions5[:, 1]
+predicted_z_5 = predicted_actions5[:, 2]
+
+predicted_x_3 = predicted_actions3[:, 0]
+predicted_y_3 = predicted_actions3[:, 1]
+predicted_z_3 = predicted_actions3[:, 2]
+
 
 correct_x = new_correct_actions[:, 0]
 correct_y = new_correct_actions[:, 1]
 correct_z = new_correct_actions[:, 2]
 
+
+error_x_3 = abs(correct_x - predicted_x_3.numpy())
+error_y_3 = abs(correct_y - predicted_y_3.numpy())
+error_z_3 = abs(correct_z - predicted_z_3.numpy())
+
+error_x_5 = abs(correct_x - predicted_x_5.numpy())
+error_y_5 = abs(correct_y - predicted_y_5.numpy())
+error_z_5 = abs(correct_z - predicted_z_5.numpy())
+
+
 # Create subplots
-fig, axs = plt.subplots(3, 1, figsize=(10, 10))
+fig, ax = plt.subplots(3, 2, figsize=(10, 10))
 
 # Plot predicted and correct x components
-axs[0].plot(predicted_x, label='Predicted X')
-axs[0].plot(correct_x, label='Correct X')
-axs[0].set_title('X Component')
-axs[0].legend()
+ax[0, 0].plot(predicted_x_5, label='Predicted X 5 Layers')
+ax[0, 0].plot(predicted_x_3, label='Predicted X 3 Layers')
+ax[0, 0].plot(correct_x, label='Correct X')
+ax[0, 0].set_title('X Component')
+ax[0, 0].legend(loc='upper right')
 
 # Plot predicted and correct y components
-axs[1].plot(predicted_y, label='Predicted Y')
-axs[1].plot(correct_y, label='Correct Y')
-axs[1].set_title('Y Component')
-axs[1].legend()
+ax[1, 0].plot(predicted_y_5, label='Predicted Y 5 Layers')
+ax[1, 0].plot(predicted_y_3, label='Predicted Y 3 Layers')  # Fixed typo: 'Laters' to 'Layers'
+ax[1, 0].plot(correct_y, label='Correct Y')
+ax[1, 0].set_title('Y Component')
+ax[1, 0].legend(loc='upper right')
 
 # Plot predicted and correct z components
-axs[2].plot(predicted_z, label='Predicted Z')
-axs[2].plot(correct_z, label='Correct Z')
-axs[2].set_title('Z Component')
-axs[2].legend()
+ax[2, 0].plot(predicted_z_5, label='Predicted Z 5 Layers')
+ax[2, 0].plot(predicted_z_3, label='Predicted Z 3 Layers')
+ax[2, 0].plot(correct_z, label='Correct Z')
+ax[2, 0].set_title('Z Component')
+ax[2, 0].legend(loc='upper right')
 
-# Show plot
+# X error
+ax[0, 1].plot(error_x_5, label='Error X 5 Layers')
+ax[0, 1].plot(error_x_3, label='Error X 3 Layers')  # Fixed label to match the context
+ax[0, 1].set_title('X Error')
+ax[0, 1].legend(loc='upper right')
+
+# Y error
+ax[1, 1].plot(error_y_5, label='Error Y 5 Layers')
+ax[1, 1].plot(error_y_3, label='Error Y 3 Layers')
+ax[1, 1].set_title('Y Error')
+ax[1, 1].legend(loc='upper right')
+
+# Z error
+ax[2, 1].plot(error_z_5, label='Error Z 5 Layers')  # Assuming error_z_5 is defined, corrected from error_x_5
+ax[2, 1].plot(error_z_3, label='Error Z 3 Layers')
+ax[2, 1].set_title('Z Error')
+ax[2, 1].legend(loc='upper right')
+
 plt.tight_layout()
 plt.show()
