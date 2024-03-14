@@ -7,7 +7,14 @@
 **Course Instructor:**
 - Dr. Tae Huh, email: thuh@ucsc.edu
 
-## Installation
+# Installation
+
+## Downloading Webots
+
+1. Visit the Webots website at [cyberbotics.com](https://cyberbotics.com/).
+2. Navigate to the "Download" section of the website.
+3. Choose the appropriate version of Webots for your operating system (Windows, macOS, or Linux).
+4. Click on the download link to start downloading the installer file.
 
 To install the necessary dependencies for running Grab-O-Matic 3000, please execute the following command:
 
