@@ -12,8 +12,8 @@
             background-color: #f3f3f3; /* Light gray background */
         }
         header {
-            background-color: #003366; /* UCSC Yellow */
-            color: #ffc800; /* UCSC Blue */
+            background-color: #003c6c; /* UCSC Blue */
+            color: #FFFFFF; /* UCSC Yellow */
             padding: 20px;
             text-align: center;
             position: relative;
@@ -29,24 +29,24 @@
             padding: 10px;
         }
         nav a {
-            color: #ffc800; /* UCSC Blue */
+            color: #FFFFFF; /* UCSC Yellow */
             text-decoration: none;
             padding: 10px;
             margin: 0 5px;
-            border: 1px solid #003366; /* UCSC Blue #003366 */
+            border: 1px solid #003c6c; /* UCSC Blue */
             border-radius: 5px;
-            background-color: #003366; /* UCSC Yellow #ffc800*/
+            background-color: #003c6c; /* UCSC Blue */
         }
         nav a:hover {
-            background-color: #003366; /* Lighter UCSC Yellow */
+            background-color: #003366; /* Slightly darker UCSC Blue */
         }
         main {
             padding: 20px;
             text-align: center;
         }
         footer {
-            background-color: #003366; /* UCSC Yellow */
-            color: #ffc800; /* UCSC Blue */
+            background-color: #003c6c; /* UCSC Blue */
+            color: #FFFFFF; /* UCSC Yellow */
             text-align: center;
             padding: 10px;
             position: fixed;
@@ -57,6 +57,7 @@
 </head>
 <body>
     <header>
+        <img src="https://communications.ucsc.edu/wp-content/uploads/2021/04/2021-Logo-Do-2.jpg" alt="UCSC Logo">
         <h1>Grab-o-Matic 3000: The Unstoppable Ball Snatcher</h1>
         <h2>Imitation Learning for Robot Manipulation based Ball Catching using Inverse Kinematics</h2>
     </header>
@@ -67,24 +68,28 @@
     </nav>
     <main>
         <h2>Abstract</h2>
-        <p>TODO</p>
+        <p>We present the Grab-o-Matic 3000, an innovative robotic system designed for ball-catching tasks. The system employs a combination of imitation 
+            learning and inverse kinematics to achieve efficient and accurate ball-catching behavior. The imitation learning component involves training a neural 
+            network model to imitate human-like ball-catching actions based on visual observations. In parallel, inverse kinematics calculations are utilized to 
+            determine the optimal joint velocities for the robotic arm to intercept the projected ball trajectory. The experimental results demonstrate the 
+            effectiveness of the proposed approach, showcasing the system's ability to successfully catch balls in a dynamic environment. The integration of 
+            imitation learning and inverse kinematics offers a promising framework for enhancing robotic manipulation tasks, with potential applications in various 
+            domains requiring dexterous object interaction.</p>
         <h2>Videos</h2>
+        <h3>Training using Initial Ball Information</h3>
         <div>
-            <iframe src="https://drive.google.com/file/d/1sYZZeoo5KResdZKkvbP85YP6cU2-RUEf/preview" width="640" height="480" allow="autoplay"></iframe>
+            <iframe width="560" height="315" src="https://www.youtube.com/embed/A2NF0_sUEn0?si=NdqP_zk4vn-0BqAL&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         </div>
+        <h3>Model using Camera Frames</h3>
         <div>
-            <iframe src="https://drive.google.com/file/d/1D-GOo8RccoMF640qiL6Jx6ESSqR6vN6w/preview" width="640" height="480" allow="autoplay"></iframe>
+            <iframe width="560" height="315" src="https://www.youtube.com/embed/Vm5W2eXWXT8?si=ud3FsmIq06-WzjFB&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         </div>
         <h2>Acknowledgements</h2>
         <p>Team Members:</p>
-        <ul>
-            <li>Eric David Vetha, email: <a href="mailto:evetha@ucsc.edu">evetha@ucsc.edu</a></li>
-            <li>Connor Guzikowski, email: <a href="mailto:cguzikow@ucsc.edu">cguzikow@ucsc.edu</a></li>
-        </ul>
+            Eric David Vetha, email: <a href="mailto:evetha@ucsc.edu">evetha@ucsc.edu</a><br>
+            Connor Guzikowski, email: <a href="mailto:cguzikow@ucsc.edu">cguzikow@ucsc.edu</a><br>
         <p>Course Instructor:</p>
-        <ul>
-            <li>Dr. Tae Huh, email: <a href="mailto:thuh@ucsc.edu">thuh@ucsc.edu</a></li>
-        </ul>
+            Dr. Tae Huh, email: <a href="mailto:thuh@ucsc.edu">thuh@ucsc.edu</a><br>
         <p></p>
         <p></p>
     </main>
